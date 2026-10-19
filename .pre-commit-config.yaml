@@ -1,0 +1,53 @@
+# Installe les hooks pre-commit ET pre-push en une seule commande
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  # ---------- Hygiène des fichiers ----------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace        # espaces en fin de ligne
+      - id: end-of-file-fixer          # une ligne vide à la fin de chaque fichier
+      - id: check-yaml                 # YAML valide (workflows, k8s)
+        args: [--unsafe]
+      - id: check-toml                 # pyproject.toml valide
+      - id: check-json
+      - id: check-added-large-files    # bloque les fichiers > 500 Ko (datasets, modèles)
+        args: [--maxkb=500]
+      - id: check-merge-conflict       # marqueurs <<<<<<< oubliés
+      - id: detect-private-key         # clés privées SSH/TLS
+      - id: mixed-line-ending          # force LF (votre problème de CRLF)
+        args: [--fix=lf]
+
+  # ---------- Lint + format Python ----------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1                       # même version que ruff dans uv.lock
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # ---------- Secrets ----------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # ---------- Hooks locaux (utilisent l'environnement uv du projet) ----------
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest -q --no-cov
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]             # au push seulement : le commit reste rapide
