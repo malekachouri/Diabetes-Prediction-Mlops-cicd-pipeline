@@ -1,0 +1,77 @@
+#  DONNÉES : gérées par DVC, jamais par Git
+data/**
+!data/**/
+!data/**/.gitkeep
+!data/**/*.dvc
+
+#  MODÈLES ET ARTEFACTS ML : gérés par MLflow / DVC
+models/
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.pth
+mlruns/
+mlartifacts/
+artifacts/
+outputs/
+
+# Rapports générés (Evidently, CML, couverture)
+reports/
+*.html
+!docs/**/*.html
+
+#  SECRETS ET CONFIGURATION LOCALE
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+.dvc/config.local
+
+#  PYTHON
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+#  OUTILS DE QUALITÉ ET DE TESTS
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+#  NOTEBOOKS
+.ipynb_checkpoints/
+
+#  INFRA : Terraform
+infra/terraform/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl.bak
+crash.log
+
+#  OS ET ÉDITEURS
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.log
