@@ -19,6 +19,8 @@ repos:
       - id: detect-private-key         # SSH/TLS private keys
       - id: mixed-line-ending          # enforce LF
         args: [--fix=lf]
+      - id: no-commit-to-branch        # never commit directly on main
+        args: [--branch, main]
 
   # ---------- Python lint + format ----------
   - repo: https://github.com/astral-sh/ruff-pre-commit
