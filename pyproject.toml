@@ -1,0 +1,23 @@
+[project]
+name = "diabetes-prediction-mlops"
+version = "0.1.0"
+description = "End-to-end MLOps CI/CD pipeline for diabetes prediction"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.148.0",
+    "joblib>=1.6.0",
+    "pandas>=2.3.3",
+    "pydantic>=2.14.1",
+    "scikit-learn>=1.7.2",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "mypy>=2.4.0",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
+]
