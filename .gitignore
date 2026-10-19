@@ -1,10 +1,14 @@
-#  DONNÉES : gérées par DVC, jamais par Git
+# ==========================================================
+#  DATA: managed by DVC, never by Git
+# ==========================================================
 data/**
 !data/**/
 !data/**/.gitkeep
 !data/**/*.dvc
 
-#  MODÈLES ET ARTEFACTS ML : gérés par MLflow / DVC
+# ==========================================================
+#  MODELS AND ML ARTIFACTS: managed by MLflow / DVC
+# ==========================================================
 models/
 *.pkl
 *.joblib
@@ -17,12 +21,14 @@ mlartifacts/
 artifacts/
 outputs/
 
-# Rapports générés (Evidently, CML, couverture)
+# Generated reports (Evidently, CML, coverage)
 reports/
 *.html
 !docs/**/*.html
 
-#  SECRETS ET CONFIGURATION LOCALE
+# ==========================================================
+#  SECRETS AND LOCAL CONFIGURATION
+# ==========================================================
 .env
 .env.*
 !.env.example
@@ -31,7 +37,9 @@ reports/
 credentials.json
 .dvc/config.local
 
+# ==========================================================
 #  PYTHON
+# ==========================================================
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -39,12 +47,14 @@ __pycache__/
 build/
 dist/
 
-# Environnements virtuels
+# Virtual environments
 .venv/
 venv/
 env/
 
-#  OUTILS DE QUALITÉ ET DE TESTS
+# ==========================================================
+#  QUALITY AND TEST TOOLS
+# ==========================================================
 .pytest_cache/
 .coverage
 .coverage.*
@@ -53,10 +63,14 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# ==========================================================
 #  NOTEBOOKS
+# ==========================================================
 .ipynb_checkpoints/
 
-#  INFRA : Terraform
+# ==========================================================
+#  INFRA: Terraform
+# ==========================================================
 infra/terraform/.terraform/
 *.tfstate
 *.tfstate.*
@@ -65,7 +79,9 @@ infra/terraform/.terraform/
 .terraform.lock.hcl.bak
 crash.log
 
-#  OS ET ÉDITEURS
+# ==========================================================
+#  OS AND EDITORS
+# ==========================================================
 .DS_Store
 Thumbs.db
 desktop.ini

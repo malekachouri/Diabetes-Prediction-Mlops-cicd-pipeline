@@ -23,7 +23,7 @@ dev = [
 ]
 
 # ==========================================================
-#  RUFF : linter + formateur
+#  RUFF: linter + formatter
 # ==========================================================
 [tool.ruff]
 line-length = 100
@@ -33,32 +33,32 @@ extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = [
-    "E",    # erreurs de style (pycodestyle)
-    "W",    # avertissements de style
-    "F",    # erreurs logiques : imports/variables inutilisés
-    "I",    # tri des imports
-    "B",    # bugs probables
-    "UP",   # syntaxe Python moderne
-    "SIM",  # simplifications de code
-    "N",    # conventions de nommage PEP 8
-    "C4",   # compréhensions de listes
-    "S",    # sécurité
-    "PT",   # bonnes pratiques pytest
+    "E",    # style errors (pycodestyle)
+    "W",    # style warnings
+    "F",    # logic errors: unused imports/variables (pyflakes)
+    "I",    # import sorting (isort)
+    "B",    # likely bugs (bugbear)
+    "UP",   # modern Python syntax (pyupgrade)
+    "SIM",  # code simplifications
+    "N",    # PEP 8 naming conventions
+    "C4",   # comprehensions
+    "S",    # security (bandit rules)
+    "PT",   # pytest best practices
 ]
 ignore = [
-    "N803", # autorise X, X_train en argument (convention ML)
-    "N806", # autorise X, X_train en variable (convention ML)
+    "N803", # allow uppercase arguments (X, X_train: ML convention)
+    "N806", # allow uppercase variables (X, X_train: ML convention)
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]  # assert est normal dans les tests
+"tests/**/*.py" = ["S101"]  # assert is expected in tests
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 
 # ==========================================================
-#  PYTEST : tests
+#  PYTEST: tests
 # ==========================================================
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -70,36 +70,37 @@ addopts = [
     "--cov-report=term-missing",
 ]
 markers = [
-    "slow: tests lents (entraînement complet)",
-    "integration: tests d'intégration (API, services externes)",
+    "slow: slow tests (full training)",
+    "integration: integration tests (API, external services)",
 ]
 
 # ==========================================================
-#  COVERAGE : couverture de code
+#  COVERAGE: code coverage
 # ==========================================================
 [tool.coverage.run]
 source = ["src"]
 branch = true
 
 [tool.coverage.report]
-fail_under = 0          # sera relevé à 80 à l'étape 5
+fail_under = 0          # will be raised to 80 in step 5
 show_missing = true
 skip_empty = true
 
 # ==========================================================
-#  MYPY : vérification des types
+#  MYPY: static type checking
 # ==========================================================
 [tool.mypy]
 python_version = "3.11"
 files = ["src"]
-ignore_missing_imports = true
+ignore_missing_imports = true   # pandas/sklearn are not fully typed
 check_untyped_defs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
+# Progressive strict mode: disallow_untyped_defs will be enabled later
 
 # ==========================================================
-#  BANDIT : sécurité du code
+#  BANDIT: code security
 # ==========================================================
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "notebooks"]

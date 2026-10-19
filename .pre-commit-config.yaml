@@ -1,28 +1,28 @@
-# Installe les hooks pre-commit ET pre-push en une seule commande
+# Install both pre-commit AND pre-push hooks with a single command
 default_install_hook_types: [pre-commit, pre-push]
 default_stages: [pre-commit]
 
 repos:
-  # ---------- Hygiène des fichiers ----------
+  # ---------- File hygiene ----------
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: trailing-whitespace        # espaces en fin de ligne
-      - id: end-of-file-fixer          # une ligne vide à la fin de chaque fichier
-      - id: check-yaml                 # YAML valide (workflows, k8s)
+      - id: trailing-whitespace        # trailing spaces
+      - id: end-of-file-fixer          # newline at end of every file
+      - id: check-yaml                 # valid YAML (workflows, k8s)
         args: [--unsafe]
-      - id: check-toml                 # pyproject.toml valide
+      - id: check-toml                 # valid pyproject.toml
       - id: check-json
-      - id: check-added-large-files    # bloque les fichiers > 500 Ko (datasets, modèles)
+      - id: check-added-large-files    # block files > 500 KB (datasets, models)
         args: [--maxkb=500]
-      - id: check-merge-conflict       # marqueurs <<<<<<< oubliés
-      - id: detect-private-key         # clés privées SSH/TLS
-      - id: mixed-line-ending          # force LF (votre problème de CRLF)
+      - id: check-merge-conflict       # leftover <<<<<<< markers
+      - id: detect-private-key         # SSH/TLS private keys
+      - id: mixed-line-ending          # enforce LF
         args: [--fix=lf]
 
-  # ---------- Lint + format Python ----------
+  # ---------- Python lint + format ----------
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.1                       # même version que ruff dans uv.lock
+    rev: v0.17.1                       # keep in sync with ruff in uv.lock
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: gitleaks
 
-  # ---------- Hooks locaux (utilisent l'environnement uv du projet) ----------
+  # ---------- Local hooks (use the project's uv environment) ----------
   - repo: local
     hooks:
       - id: mypy
@@ -50,4 +50,4 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        stages: [pre-push]             # au push seulement : le commit reste rapide
+        stages: [pre-push]             # on push only: keeps commits fast

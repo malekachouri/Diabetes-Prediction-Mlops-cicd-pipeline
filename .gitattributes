@@ -1,11 +1,11 @@
-# Normalise les fins de ligne : LF dans le repo et sur disque
+# Normalize line endings: LF in the repo and on disk
 * text=auto eol=lf
 
-# Fichiers Windows qui doivent rester en CRLF
+# Windows files that must keep CRLF
 *.bat  text eol=crlf
 *.ps1  text eol=crlf
 
-# Fichiers binaires (jamais modifiés par Git)
+# Binary files (never modified by Git)
 *.png    binary
 *.jpg    binary
 *.pkl    binary

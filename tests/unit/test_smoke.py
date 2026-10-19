@@ -1,4 +1,4 @@
-"""Smoke test : vérifie que la structure du projet est importable."""
+"""Smoke test: checks that the project structure is importable."""
 
 import importlib
 
