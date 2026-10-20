@@ -13,6 +13,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+data = [
+    "dvc>=3.67.1",
+]
 dev = [
     "bandit>=1.9.4",
     "mypy>=2.4.0",
@@ -104,3 +107,9 @@ no_implicit_optional = true
 # ==========================================================
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "notebooks"]
+
+# ==========================================================
+#  UV: dependency groups installed by default
+# ==========================================================
+[tool.uv]
+default-groups = ["dev", "data"]
