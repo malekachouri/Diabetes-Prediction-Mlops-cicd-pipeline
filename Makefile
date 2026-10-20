@@ -12,7 +12,8 @@ SHELL := /bin/bash
 SRC   := src
 TESTS := tests
 
-.PHONY: help install install-ci lint format typecheck security test check pre-commit clean
+.PHONY: help install install-ci lint format typecheck security test check pre-commit \
+        data-pull data-push data-status clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -48,6 +49,17 @@ check: lint typecheck security test ## Run ALL checks (same as the CI)
 
 pre-commit: ## Run all pre-commit hooks on all files
 > uv run pre-commit run --all-files
+
+# ---------- Data (DVC) ----------
+data-pull: ## Download the data versioned in Git from the DVC remote
+> uv run dvc pull
+
+data-push: ## Upload local data versions to the DVC remote
+> uv run dvc push
+
+data-status: ## Show local and remote data status
+> uv run dvc status
+> uv run dvc status --cloud
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
