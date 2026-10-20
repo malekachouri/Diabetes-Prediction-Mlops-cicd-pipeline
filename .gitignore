@@ -22,7 +22,8 @@ mlartifacts/
 /outputs/
 
 # Generated reports (Evidently, CML, coverage)
-/reports/
+/reports/*
+!/reports/metrics.json
 *.html
 !docs/**/*.html
 
