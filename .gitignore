@@ -9,7 +9,7 @@ data/**
 # ==========================================================
 #  MODELS AND ML ARTIFACTS: managed by MLflow / DVC
 # ==========================================================
-models/
+/models/
 *.pkl
 *.joblib
 *.h5
@@ -18,11 +18,11 @@ models/
 *.pth
 mlruns/
 mlartifacts/
-artifacts/
-outputs/
+/artifacts/
+/outputs/
 
 # Generated reports (Evidently, CML, coverage)
-reports/
+/reports/
 *.html
 !docs/**/*.html
 
