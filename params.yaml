@@ -1,0 +1,32 @@
+# ==========================================================
+#  Pipeline parameters (single source of truth)
+#  Any change here is tracked by DVC and triggers a re-run
+#  of the stages that depend on it.
+# ==========================================================
+
+data:
+  raw_path: data/raw/diabetes.csv
+  processed_dir: data/processed
+  target: Outcome
+  features:
+    - Pregnancies
+    - Glucose
+    - BloodPressure
+    - BMI
+    - Age
+  # Columns where 0 is physiologically impossible and means "missing"
+  zero_as_missing:
+    - Glucose
+    - BloodPressure
+    - BMI
+  test_size: 0.2
+  random_state: 42
+
+train:
+  model_path: models/model.joblib
+  n_estimators: 200
+  max_depth: 6
+  random_state: 42
+
+evaluate:
+  metrics_path: reports/metrics.json
