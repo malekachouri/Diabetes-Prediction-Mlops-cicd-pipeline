@@ -7,6 +7,7 @@ changes, a new ADR supersedes the old one.
 | ADR | Title | Status |
 |---|---|---|
 | [001](001-tooling-choices.md) | Development tooling choices | Accepted |
+| [002](002-data-versioning-dvc-dagshub.md) | Data versioning with DVC and DagsHub | Accepted |
 
 ## Template
 
