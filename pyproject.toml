@@ -93,6 +93,9 @@ branch = true
 fail_under = 0          # will be raised to 80 in step 5
 show_missing = true
 skip_empty = true
+exclude_also = [
+    'if __name__ == "__main__":',  # script entry points
+]
 
 # ==========================================================
 #  MYPY: static type checking
