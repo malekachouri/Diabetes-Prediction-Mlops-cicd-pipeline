@@ -38,6 +38,7 @@ stages:
       - src/data/prepare.py
       - src/models/train.py
       - src/models/evaluate.py
+      - src/tracking.py
       - models/model.joblib
       - data/processed/test.csv
     params:

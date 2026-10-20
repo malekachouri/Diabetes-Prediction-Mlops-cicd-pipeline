@@ -23,6 +23,7 @@ from sklearn.metrics import (
 from src.config import DEFAULT_PARAMS_PATH, Config, load_config
 from src.data.prepare import TEST_FILENAME
 from src.models.train import load_split
+from src.tracking import is_tracking_enabled, log_run
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,10 @@ def evaluate(config: Config) -> dict[str, float | int]:
     config.evaluate.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.evaluate.metrics_path.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     logger.info("Metrics on %d test rows: %s", len(X_test), metrics)
+
+    if is_tracking_enabled():
+        run_id = log_run(config, metrics, model, X_test)
+        logger.info("Run logged to MLflow: %s", run_id)
     return metrics
 
 

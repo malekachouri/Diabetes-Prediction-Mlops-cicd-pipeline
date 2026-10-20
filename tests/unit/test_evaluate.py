@@ -150,3 +150,24 @@ def test_main_reads_params_file(tmp_path: Path) -> None:
     main(params_path)
 
     assert config.evaluate.metrics_path.exists()
+
+
+def test_evaluate_logs_to_mlflow_only_when_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = make_config(tmp_path)
+    prepare_trained_model(config)
+    logged: list[dict] = []
+
+    def fake_log_run(config: Config, metrics: dict, *args: object) -> str:
+        logged.append(metrics)
+        return "fake-run-id"
+
+    monkeypatch.setattr("src.models.evaluate.log_run", fake_log_run)
+
+    evaluate(config)
+    assert logged == []  # no MLFLOW_TRACKING_URI: nothing is logged
+
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://tracking.invalid")
+    metrics = evaluate(config)
+    assert logged == [metrics]
