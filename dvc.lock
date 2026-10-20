@@ -1,0 +1,123 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m src.data.prepare
+    deps:
+    - path: data/raw/diabetes.csv
+      hash: md5
+      md5: f2906818eda8fcfc8f8416557ab1e6df
+      size: 23873
+    - path: src/config.py
+      hash: md5
+      md5: 3c00a97bfd0363796bb673ff90a11a92
+      size: 2876
+    - path: src/data/prepare.py
+      hash: md5
+      md5: d3e3513afd9529285522b4d80c450b70
+      size: 2641
+    params:
+      params.yaml:
+        data:
+          raw_path: data/raw/diabetes.csv
+          processed_dir: data/processed
+          target: Outcome
+          features:
+          - Pregnancies
+          - Glucose
+          - BloodPressure
+          - BMI
+          - Age
+          zero_as_missing:
+          - Glucose
+          - BloodPressure
+          - BMI
+          test_size: 0.2
+          random_state: 42
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: f343cc1f9bc4d3a199dc36dab1337cdb
+      size: 3511
+    - path: data/processed/train.csv
+      hash: md5
+      md5: b9025f848f1490d52b1d7478429d032b
+      size: 13926
+  train:
+    cmd: python -m src.models.train
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: b9025f848f1490d52b1d7478429d032b
+      size: 13926
+    - path: src/config.py
+      hash: md5
+      md5: 3c00a97bfd0363796bb673ff90a11a92
+      size: 2876
+    - path: src/data/prepare.py
+      hash: md5
+      md5: d3e3513afd9529285522b4d80c450b70
+      size: 2641
+    - path: src/models/train.py
+      hash: md5
+      md5: 33a26dcb84bfc70e4b49664d91dee878
+      size: 2402
+    params:
+      params.yaml:
+        data.features:
+        - Pregnancies
+        - Glucose
+        - BloodPressure
+        - BMI
+        - Age
+        data.target: Outcome
+        train:
+          model_path: models/model.joblib
+          n_estimators: 200
+          max_depth: 6
+          random_state: 42
+    outs:
+    - path: models/model.joblib
+      hash: md5
+      md5: 673cfd3d9b872efe8b57d69f43abd48f
+      size: 1231154
+  evaluate:
+    cmd: python -m src.models.evaluate
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: f343cc1f9bc4d3a199dc36dab1337cdb
+      size: 3511
+    - path: models/model.joblib
+      hash: md5
+      md5: 673cfd3d9b872efe8b57d69f43abd48f
+      size: 1231154
+    - path: src/config.py
+      hash: md5
+      md5: 3c00a97bfd0363796bb673ff90a11a92
+      size: 2876
+    - path: src/data/prepare.py
+      hash: md5
+      md5: d3e3513afd9529285522b4d80c450b70
+      size: 2641
+    - path: src/models/evaluate.py
+      hash: md5
+      md5: 743ea11af4e07f23c87bb943b517ef7e
+      size: 2600
+    - path: src/models/train.py
+      hash: md5
+      md5: 33a26dcb84bfc70e4b49664d91dee878
+      size: 2402
+    params:
+      params.yaml:
+        data.features:
+        - Pregnancies
+        - Glucose
+        - BloodPressure
+        - BMI
+        - Age
+        data.target: Outcome
+    outs:
+    - path: reports/metrics.json
+      hash: md5
+      md5: c39d54ab4155a9994ee74d2ae8314b86
+      size: 203

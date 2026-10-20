@@ -1,0 +1,48 @@
+# ==========================================================
+#  ML pipeline: prepare -> train -> evaluate
+#  Run with `dvc repro`: only stages whose dependencies or
+#  parameters changed are re-executed.
+# ==========================================================
+
+stages:
+  prepare:
+    cmd: python -m src.data.prepare
+    deps:
+      - src/config.py
+      - src/data/prepare.py
+      - data/raw/diabetes.csv
+    params:
+      - data
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  train:
+    cmd: python -m src.models.train
+    deps:
+      - src/config.py
+      - src/data/prepare.py
+      - src/models/train.py
+      - data/processed/train.csv
+    params:
+      - data.features
+      - data.target
+      - train
+    outs:
+      - models/model.joblib
+
+  evaluate:
+    cmd: python -m src.models.evaluate
+    deps:
+      - src/config.py
+      - src/data/prepare.py
+      - src/models/train.py
+      - src/models/evaluate.py
+      - models/model.joblib
+      - data/processed/test.csv
+    params:
+      - data.features
+      - data.target
+    metrics:
+      - reports/metrics.json:
+          cache: false
