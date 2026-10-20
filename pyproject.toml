@@ -26,6 +26,9 @@ dev = [
     "ruff>=0.17.1",
     "types-pyyaml>=6.0.12.20260906",
 ]
+tracking = [
+    "mlflow>=3.17.1",
+]
 
 # ==========================================================
 #  RUFF: linter + formatter
@@ -120,4 +123,4 @@ exclude_dirs = ["tests", ".venv", "notebooks"]
 #  UV: dependency groups installed by default
 # ==========================================================
 [tool.uv]
-default-groups = ["dev", "data"]
+default-groups = ["dev", "data", "tracking"]
