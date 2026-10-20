@@ -1,3 +1,6 @@
 [core]
     autostage = true
     analytics = false
+    remote = origin
+['remote "origin"']
+    url = https://dagshub.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline.dvc
