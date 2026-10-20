@@ -13,7 +13,7 @@ SRC   := src
 TESTS := tests
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
-        data-pull data-push data-status clean
+        data-pull data-push data-status repro metrics dag clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -60,6 +60,17 @@ data-push: ## Upload local data versions to the DVC remote
 data-status: ## Show local and remote data status
 > uv run dvc status
 > uv run dvc status --cloud
+
+# ---------- ML pipeline (DVC) ----------
+repro: ## Run the ML pipeline (only the stages that changed)
+> uv run dvc repro
+
+metrics: ## Show the current metrics and the diff with the last commit
+> uv run dvc metrics show
+> uv run dvc metrics diff
+
+dag: ## Show the pipeline stages graph
+> uv run dvc dag
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files

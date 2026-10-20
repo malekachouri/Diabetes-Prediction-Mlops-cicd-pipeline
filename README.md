@@ -135,11 +135,47 @@ Credentials are stored in `.dvc/config.local`, which is git-ignored.
 
 ---
 
+## 🧪 ML Pipeline
+
+The pipeline is defined in [`dvc.yaml`](dvc.yaml) and configured in
+[`params.yaml`](params.yaml). DVC only re-runs the stages whose code, data or
+parameters changed.
+
+```
+data/raw/diabetes.csv ──▶ prepare ──▶ train ──▶ evaluate ──▶ reports/metrics.json
+                          (src/data/   (src/models/ (src/models/
+                           prepare.py)  train.py)    evaluate.py)
+```
+
+| Stage | What it does | Output |
+|---|---|---|
+| `prepare` | Keep model columns, flag impossible zeros as missing, stratified 80/20 split | `data/processed/{train,test}.csv` |
+| `train` | Median imputation + random forest in a single scikit-learn `Pipeline` | `models/model.joblib` |
+| `evaluate` | Score the model on the held-out test set | `reports/metrics.json` |
+
+```bash
+make data-pull   # get the data (see the Data section)
+make repro       # run the pipeline
+make metrics     # show metrics and the diff with the last commit
+make dag         # show the stages graph
+```
+
+**Baseline** (random forest, 200 trees, max depth 6, 154 test patients):
+
+| Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---|---|---|---|
+| 0.7468 | 0.6531 | 0.5926 | 0.6214 | 0.8193 |
+
+Recall is the key metric for screening: the baseline misses 22 of 54 diabetic
+patients. Improving it is the goal of the experiments in step 4.
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] **Step 1** — Foundations: structure, environment, code quality, pre-commit
 - [x] **Step 2** — Data versioning (DVC + DagsHub)
-- [ ] **Step 3** — Modular ML pipeline
+- [x] **Step 3** — Modular ML pipeline
 - [ ] **Step 4** — Experiment tracking & model registry (MLflow)
 - [ ] **Step 5** — ML testing & data validation
 - [ ] **Step 6** — Continuous Integration (GitHub Actions + CML)
