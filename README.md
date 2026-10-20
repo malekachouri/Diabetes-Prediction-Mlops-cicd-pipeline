@@ -112,10 +112,33 @@ Run `make` to list all available commands.
 
 ---
 
+## 📦 Data
+
+The dataset is versioned with [DVC](https://dvc.org/) and stored on
+[DagsHub](https://dagshub.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline).
+Git only tracks small pointer files (`*.dvc`); the data itself lives on the DVC remote.
+
+| Dataset | Pointer | Documentation |
+|---|---|---|
+| Pima Indians Diabetes (768 rows) | `data/raw/diabetes.csv.dvc` | [Dataset card](docs/data/diabetes-dataset.md) |
+
+**Get the data** (requires a free DagsHub account and an access token):
+
+```bash
+uv run dvc remote modify origin --local auth basic
+uv run dvc remote modify origin --local user <dagshub-user>
+uv run dvc remote modify origin --local password <dagshub-token>
+make data-pull
+```
+
+Credentials are stored in `.dvc/config.local`, which is git-ignored.
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] **Step 1** — Foundations: structure, environment, code quality, pre-commit
-- [ ] **Step 2** — Data versioning (DVC + DagsHub)
+- [x] **Step 2** — Data versioning (DVC + DagsHub)
 - [ ] **Step 3** — Modular ML pipeline
 - [ ] **Step 4** — Experiment tracking & model registry (MLflow)
 - [ ] **Step 5** — ML testing & data validation
