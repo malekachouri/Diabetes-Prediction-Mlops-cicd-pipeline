@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import pytest
 from mlflow.tracking import MlflowClient
-from sklearn.dummy import DummyClassifier
 from sklearn.pipeline import Pipeline
 
 from src.config import Config, DataConfig, EvaluateConfig, TrainConfig
+from src.models.train import build_pipeline
 from src.tracking import (
     MODEL_ARTIFACT_PATH,
     flatten_params,
@@ -49,9 +49,10 @@ def make_config(tmp_path: Path) -> Config:
     )
 
 
-def make_model() -> tuple[Pipeline, pd.DataFrame]:
+def make_model(config: Config) -> tuple[Pipeline, pd.DataFrame]:
+    """Train the real project pipeline (imputer + random forest) on a tiny dataset."""
     X = pd.DataFrame({"Glucose": [90.0, 150.0, 100.0, 180.0], "BMI": [22.0, 31.0, 25.0, 35.0]})
-    model = Pipeline([("classifier", DummyClassifier(strategy="most_frequent"))])
+    model = build_pipeline(config.train)
     model.fit(X, np.array([0, 1, 0, 1]))
     return model, X
 
@@ -86,7 +87,7 @@ def test_log_run_records_params_metrics_tags_and_model(
     monkeypatch.setenv("MLFLOW_EXPERIMENT_NAME", "unit-test")
     mlflow.create_experiment("unit-test", artifact_location=(tmp_path / "artifacts").as_uri())
     config = make_config(tmp_path)
-    model, X = make_model()
+    model, X = make_model(config)
 
     run_id = log_run(config, METRICS, model, X)
 

@@ -20,6 +20,9 @@ from src.config import Config
 
 DEFAULT_EXPERIMENT_NAME = "diabetes-prediction"
 MODEL_ARTIFACT_PATH = "model"
+# Types that skops must trust to deserialize the model: the node storage of the
+# random forest trees and numpy dtypes. Safe here: we only load models we trained.
+SKOPS_TRUSTED_TYPES = ["sklearn.tree._tree.Tree", "numpy.dtype"]
 
 
 def is_tracking_enabled() -> bool:
@@ -62,6 +65,8 @@ def log_run(
         signature = infer_signature(X_sample, model.predict(X_sample))
         with tempfile.TemporaryDirectory() as tmp_dir:
             model_dir = Path(tmp_dir) / MODEL_ARTIFACT_PATH
-            mlflow.sklearn.save_model(model, model_dir, signature=signature)
+            mlflow.sklearn.save_model(
+                model, model_dir, signature=signature, skops_trusted_types=SKOPS_TRUSTED_TYPES
+            )
             mlflow.log_artifacts(str(model_dir), artifact_path=MODEL_ARTIFACT_PATH)
         return str(run.info.run_id)
