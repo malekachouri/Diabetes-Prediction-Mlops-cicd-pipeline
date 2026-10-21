@@ -9,8 +9,8 @@ stages:
       size: 23873
     - path: src/config.py
       hash: md5
-      md5: 3c00a97bfd0363796bb673ff90a11a92
-      size: 2876
+      md5: 8a3fc41dda32f3a5ed62455bfe99546c
+      size: 3456
     - path: src/data/prepare.py
       hash: md5
       md5: d3e3513afd9529285522b4d80c450b70
@@ -51,16 +51,16 @@ stages:
       size: 13926
     - path: src/config.py
       hash: md5
-      md5: 3c00a97bfd0363796bb673ff90a11a92
-      size: 2876
+      md5: 8a3fc41dda32f3a5ed62455bfe99546c
+      size: 3456
     - path: src/data/prepare.py
       hash: md5
       md5: d3e3513afd9529285522b4d80c450b70
       size: 2641
     - path: src/models/train.py
       hash: md5
-      md5: 33a26dcb84bfc70e4b49664d91dee878
-      size: 2402
+      md5: aba230e5ece5619060adecc7b906b548
+      size: 2518
     params:
       params.yaml:
         data.features:
@@ -74,6 +74,8 @@ stages:
           model_path: models/model.joblib
           n_estimators: 200
           max_depth: 6
+          min_samples_leaf: 1
+          class_weight:
           random_state: 42
     outs:
     - path: models/model.joblib
@@ -87,26 +89,30 @@ stages:
       hash: md5
       md5: f343cc1f9bc4d3a199dc36dab1337cdb
       size: 3511
+    - path: data/processed/train.csv
+      hash: md5
+      md5: b9025f848f1490d52b1d7478429d032b
+      size: 13926
     - path: models/model.joblib
       hash: md5
       md5: 673cfd3d9b872efe8b57d69f43abd48f
       size: 1231154
     - path: src/config.py
       hash: md5
-      md5: 3c00a97bfd0363796bb673ff90a11a92
-      size: 2876
+      md5: 8a3fc41dda32f3a5ed62455bfe99546c
+      size: 3456
     - path: src/data/prepare.py
       hash: md5
       md5: d3e3513afd9529285522b4d80c450b70
       size: 2641
     - path: src/models/evaluate.py
       hash: md5
-      md5: b3d0f426239c23859f404e5de378799f
-      size: 2798
+      md5: 1fe15fab7a153759a9f4a61494660e0d
+      size: 3830
     - path: src/models/train.py
       hash: md5
-      md5: 33a26dcb84bfc70e4b49664d91dee878
-      size: 2402
+      md5: aba230e5ece5619060adecc7b906b548
+      size: 2518
     - path: src/tracking.py
       hash: md5
       md5: 426c651cf8d4702553876d9fdf7042ac
@@ -120,8 +126,15 @@ stages:
         - BMI
         - Age
         data.target: Outcome
+        train:
+          model_path: models/model.joblib
+          n_estimators: 200
+          max_depth: 6
+          min_samples_leaf: 1
+          class_weight:
+          random_state: 42
     outs:
     - path: reports/metrics.json
       hash: md5
-      md5: c39d54ab4155a9994ee74d2ae8314b86
-      size: 203
+      md5: caa4d9a774c09050b38acefb05a0237f
+      size: 258

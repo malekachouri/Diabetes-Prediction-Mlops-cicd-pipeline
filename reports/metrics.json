@@ -7,5 +7,7 @@
   "true_negatives": 83,
   "false_positives": 17,
   "false_negatives": 22,
-  "true_positives": 32
+  "true_positives": 32,
+  "cv_recall_mean": 0.5843,
+  "cv_recall_std": 0.0353
 }
