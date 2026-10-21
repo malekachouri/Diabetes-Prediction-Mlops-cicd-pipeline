@@ -101,12 +101,16 @@ stages:
       size: 2641
     - path: src/models/evaluate.py
       hash: md5
-      md5: 743ea11af4e07f23c87bb943b517ef7e
-      size: 2600
+      md5: b3d0f426239c23859f404e5de378799f
+      size: 2798
     - path: src/models/train.py
       hash: md5
       md5: 33a26dcb84bfc70e4b49664d91dee878
       size: 2402
+    - path: src/tracking.py
+      hash: md5
+      md5: 426c651cf8d4702553876d9fdf7042ac
+      size: 2691
     params:
       params.yaml:
         data.features:
