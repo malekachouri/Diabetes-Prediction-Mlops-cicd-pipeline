@@ -34,6 +34,8 @@ def build_pipeline(config: TrainConfig) -> Pipeline:
                 RandomForestClassifier(
                     n_estimators=config.n_estimators,
                     max_depth=config.max_depth,
+                    min_samples_leaf=config.min_samples_leaf,
+                    class_weight=config.class_weight,
                     random_state=config.random_state,
                     n_jobs=1,  # single thread: bit-for-bit reproducible probabilities
                 ),

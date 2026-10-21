@@ -67,6 +67,25 @@ def test_build_pipeline_uses_train_params(tmp_path: Path) -> None:
     assert classifier.n_estimators == 10
     assert classifier.max_depth == 3
     assert classifier.random_state == 42
+    assert classifier.min_samples_leaf == 1
+    assert classifier.class_weight is None
+
+
+def test_build_pipeline_passes_class_weight(tmp_path: Path) -> None:
+    config = make_config(tmp_path)
+    train_config = TrainConfig(
+        model_path=config.train.model_path,
+        n_estimators=10,
+        max_depth=3,
+        random_state=42,
+        min_samples_leaf=5,
+        class_weight="balanced",
+    )
+
+    classifier = build_pipeline(train_config).named_steps["classifier"]
+
+    assert classifier.min_samples_leaf == 5
+    assert classifier.class_weight == "balanced"
 
 
 def test_load_split_separates_features_and_target(tmp_path: Path) -> None:

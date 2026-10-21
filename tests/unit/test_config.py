@@ -44,6 +44,8 @@ def test_load_config_returns_typed_values(tmp_path: Path) -> None:
     assert config.data.raw_path == Path("data/raw/diabetes.csv")
     assert config.data.test_size == pytest.approx(0.2)
     assert config.train.n_estimators == 10
+    assert config.train.min_samples_leaf == 1  # default when absent
+    assert config.train.class_weight is None
     assert config.evaluate.metrics_path == Path("reports/metrics.json")
 
 
@@ -56,6 +58,8 @@ def test_load_config_returns_typed_values(tmp_path: Path) -> None:
         ("data", "zero_as_missing", ["Insulin"], "zero_as_missing"),
         ("train", "n_estimators", 0, "n_estimators"),
         ("train", "max_depth", 0, "max_depth"),
+        ("train", "min_samples_leaf", 0, "min_samples_leaf"),
+        ("train", "class_weight", "heavy", "class_weight"),
     ],
 )
 def test_invalid_params_are_rejected(
