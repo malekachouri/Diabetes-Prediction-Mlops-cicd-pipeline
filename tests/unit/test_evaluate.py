@@ -10,7 +10,7 @@ import yaml
 
 from src.config import Config, DataConfig, EvaluateConfig, TrainConfig
 from src.data.prepare import TEST_FILENAME, TRAIN_FILENAME
-from src.models.evaluate import compute_metrics, evaluate, main
+from src.models.evaluate import compute_metrics, cross_validated_recall, evaluate, main
 from src.models.train import train
 
 FEATURES = ["Glucose", "BMI", "Age"]
@@ -25,6 +25,8 @@ METRIC_KEYS = {
     "false_positives",
     "false_negatives",
     "true_positives",
+    "cv_recall_mean",
+    "cv_recall_std",
 }
 
 
@@ -104,6 +106,18 @@ def test_compute_metrics_never_predicting_positive() -> None:
     assert metrics["precision"] == 0.0  # zero_division=0 instead of a warning
 
 
+def test_cross_validated_recall_is_reproducible(tmp_path: Path) -> None:
+    config = make_config(tmp_path)
+    train_set = make_split(80, seed=0)
+    X, y = train_set[FEATURES], train_set[TARGET]
+
+    mean, std = cross_validated_recall(config, X, y)
+
+    assert 0.0 <= mean <= 1.0
+    assert std >= 0.0
+    assert cross_validated_recall(config, X, y) == (mean, std)
+
+
 def test_evaluate_writes_metrics_json(tmp_path: Path) -> None:
     config = make_config(tmp_path)
     prepare_trained_model(config)
@@ -115,7 +129,7 @@ def test_evaluate_writes_metrics_json(tmp_path: Path) -> None:
     assert set(saved) == METRIC_KEYS
     confusion = ("true_negatives", "false_positives", "false_negatives", "true_positives")
     assert sum(saved[name] for name in confusion) == 20  # every test row, and only test rows
-    for name in ("accuracy", "precision", "recall", "f1", "roc_auc"):
+    for name in ("accuracy", "precision", "recall", "f1", "roc_auc", "cv_recall_mean"):
         assert 0.0 <= saved[name] <= 1.0
 
 

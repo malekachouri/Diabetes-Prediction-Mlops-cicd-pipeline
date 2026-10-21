@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 DEFAULT_PARAMS_PATH = Path("params.yaml")
+ALLOWED_CLASS_WEIGHTS = (None, "balanced", "balanced_subsample")
 
 
 @dataclass(frozen=True)
@@ -43,12 +44,20 @@ class TrainConfig:
     n_estimators: int
     max_depth: int | None
     random_state: int
+    min_samples_leaf: int = 1
+    class_weight: str | None = None
 
     def __post_init__(self) -> None:
         if self.n_estimators < 1:
             raise ValueError(f"n_estimators must be >= 1, got {self.n_estimators}")
         if self.max_depth is not None and self.max_depth < 1:
             raise ValueError(f"max_depth must be >= 1 or null, got {self.max_depth}")
+        if self.min_samples_leaf < 1:
+            raise ValueError(f"min_samples_leaf must be >= 1, got {self.min_samples_leaf}")
+        if self.class_weight not in ALLOWED_CLASS_WEIGHTS:
+            raise ValueError(
+                f"class_weight must be one of {ALLOWED_CLASS_WEIGHTS}, got {self.class_weight}"
+            )
 
 
 @dataclass(frozen=True)
@@ -91,6 +100,8 @@ def load_config(path: Path | str = DEFAULT_PARAMS_PATH) -> Config:
             n_estimators=int(train["n_estimators"]),
             max_depth=train["max_depth"],
             random_state=int(train["random_state"]),
+            min_samples_leaf=int(train.get("min_samples_leaf", 1)),
+            class_weight=train.get("class_weight"),
         ),
         evaluate=EvaluateConfig(
             metrics_path=Path(evaluate["metrics_path"]),
