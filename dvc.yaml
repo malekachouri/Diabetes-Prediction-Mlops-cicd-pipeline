@@ -40,10 +40,12 @@ stages:
       - src/models/evaluate.py
       - src/tracking.py
       - models/model.joblib
+      - data/processed/train.csv
       - data/processed/test.csv
     params:
       - data.features
       - data.target
+      - train
     metrics:
       - reports/metrics.json:
           cache: false

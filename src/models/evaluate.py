@@ -11,6 +11,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -19,13 +20,16 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from sklearn.model_selection import StratifiedKFold, cross_val_score
 
 from src.config import DEFAULT_PARAMS_PATH, Config, load_config
-from src.data.prepare import TEST_FILENAME
-from src.models.train import load_split
+from src.data.prepare import TEST_FILENAME, TRAIN_FILENAME
+from src.models.train import build_pipeline, load_split
 from src.tracking import is_tracking_enabled, log_run
 
 logger = logging.getLogger(__name__)
+
+CV_FOLDS = 5
 
 
 def compute_metrics(
@@ -50,6 +54,21 @@ def compute_metrics(
     }
 
 
+def cross_validated_recall(
+    config: Config, X_train: pd.DataFrame, y_train: pd.Series
+) -> tuple[float, float]:
+    """Return the mean and standard deviation of the recall over stratified folds.
+
+    Computed on the training set only: it is used to compare experiments, so the
+    test set stays untouched until the final evaluation.
+    """
+    folds = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=config.train.random_state)
+    scores = cross_val_score(
+        build_pipeline(config.train), X_train, y_train, cv=folds, scoring="recall"
+    )
+    return round(float(scores.mean()), 4), round(float(scores.std()), 4)
+
+
 def evaluate(config: Config) -> dict[str, float | int]:
     """Score the saved model on the test set and write the metrics as JSON."""
     model = joblib.load(config.train.model_path)
@@ -60,6 +79,13 @@ def evaluate(config: Config) -> dict[str, float | int]:
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1]
     metrics = compute_metrics(y_test.to_numpy(), y_pred, y_proba)
+
+    X_train, y_train = load_split(
+        config.data.processed_dir / TRAIN_FILENAME, config.data.features, config.data.target
+    )
+    metrics["cv_recall_mean"], metrics["cv_recall_std"] = cross_validated_recall(
+        config, X_train, y_train
+    )
 
     config.evaluate.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.evaluate.metrics_path.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
