@@ -12,6 +12,9 @@ SHELL := /bin/bash
 SRC   := src
 TESTS := tests
 
+# Export the variables of .env (MLflow settings) when the file exists
+LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
+
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         data-pull data-push data-status repro metrics dag register clean
 
@@ -62,8 +65,8 @@ data-status: ## Show local and remote data status
 > uv run dvc status --cloud
 
 # ---------- ML pipeline (DVC) ----------
-repro: ## Run the ML pipeline (only the stages that changed)
-> uv run dvc repro
+repro: ## Run the ML pipeline (only the stages that changed), logged to MLflow if .env exists
+> $(LOAD_ENV) uv run dvc repro
 
 metrics: ## Show the current metrics and the diff with the last commit
 > uv run dvc metrics show
@@ -73,7 +76,7 @@ dag: ## Show the pipeline stages graph
 > uv run dvc dag
 
 register: ## Register the current model in MLflow and promote it if better (needs .env)
-> uv run python -m src.models.register
+> $(LOAD_ENV) uv run python -m src.models.register
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
