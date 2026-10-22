@@ -13,7 +13,7 @@ SRC   := src
 TESTS := tests
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
-        data-pull data-push data-status repro metrics dag clean
+        data-pull data-push data-status repro metrics dag register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -71,6 +71,9 @@ metrics: ## Show the current metrics and the diff with the last commit
 
 dag: ## Show the pipeline stages graph
 > uv run dvc dag
+
+register: ## Register the current model in MLflow and promote it if better (needs .env)
+> uv run python -m src.models.register
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
