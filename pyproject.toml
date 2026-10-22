@@ -16,6 +16,7 @@ dependencies = [
 [dependency-groups]
 data = [
     "dvc>=3.67.1",
+    "pandera>=0.34.1",
 ]
 dev = [
     "bandit>=1.9.4",

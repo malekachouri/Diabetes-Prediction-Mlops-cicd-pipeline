@@ -13,8 +13,12 @@ stages:
       size: 3456
     - path: src/data/prepare.py
       hash: md5
-      md5: d3e3513afd9529285522b4d80c450b70
-      size: 2641
+      md5: 5264378d3891eda79cbe42f820f283b4
+      size: 2841
+    - path: src/data/schemas.py
+      hash: md5
+      md5: 54ca1da879eb7b772995267008b25861
+      size: 3273
     params:
       params.yaml:
         data:
@@ -36,27 +40,27 @@ stages:
     outs:
     - path: data/processed/test.csv
       hash: md5
-      md5: f343cc1f9bc4d3a199dc36dab1337cdb
-      size: 3511
+      md5: 219c52f033ddd35f1d138c993faad1f0
+      size: 4127
     - path: data/processed/train.csv
       hash: md5
-      md5: b9025f848f1490d52b1d7478429d032b
-      size: 13926
+      md5: 6da039be813b0805a72cbfa6e8ee3cc2
+      size: 16382
   train:
     cmd: python -m src.models.train
     deps:
     - path: data/processed/train.csv
       hash: md5
-      md5: b9025f848f1490d52b1d7478429d032b
-      size: 13926
+      md5: 6da039be813b0805a72cbfa6e8ee3cc2
+      size: 16382
     - path: src/config.py
       hash: md5
       md5: 8a3fc41dda32f3a5ed62455bfe99546c
       size: 3456
     - path: src/data/prepare.py
       hash: md5
-      md5: d3e3513afd9529285522b4d80c450b70
-      size: 2641
+      md5: 5264378d3891eda79cbe42f820f283b4
+      size: 2841
     - path: src/models/train.py
       hash: md5
       md5: aba230e5ece5619060adecc7b906b548
@@ -87,12 +91,12 @@ stages:
     deps:
     - path: data/processed/test.csv
       hash: md5
-      md5: f343cc1f9bc4d3a199dc36dab1337cdb
-      size: 3511
+      md5: 219c52f033ddd35f1d138c993faad1f0
+      size: 4127
     - path: data/processed/train.csv
       hash: md5
-      md5: b9025f848f1490d52b1d7478429d032b
-      size: 13926
+      md5: 6da039be813b0805a72cbfa6e8ee3cc2
+      size: 16382
     - path: models/model.joblib
       hash: md5
       md5: b7084c3904260c200bcc283cc34b8964
@@ -103,8 +107,8 @@ stages:
       size: 3456
     - path: src/data/prepare.py
       hash: md5
-      md5: d3e3513afd9529285522b4d80c450b70
-      size: 2641
+      md5: 5264378d3891eda79cbe42f820f283b4
+      size: 2841
     - path: src/models/evaluate.py
       hash: md5
       md5: 1fe15fab7a153759a9f4a61494660e0d
