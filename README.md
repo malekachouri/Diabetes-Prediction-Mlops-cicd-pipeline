@@ -160,14 +160,33 @@ make metrics     # show metrics and the diff with the last commit
 make dag         # show the stages graph
 ```
 
-**Baseline** (random forest, 200 trees, max depth 6, 154 test patients):
+**Current model vs baseline** (random forest, 200 trees, 154 test patients):
 
-| Accuracy | Precision | Recall | F1 | ROC-AUC |
-|---|---|---|---|---|
-| 0.7468 | 0.6531 | 0.5926 | 0.6214 | 0.8193 |
+| Model | CV recall | Recall | Precision | F1 | ROC-AUC | Missed diabetics |
+|---|---|---|---|---|---|---|
+| Baseline (depth 6) | 0.5843 | 0.5926 | 0.6531 | 0.6214 | 0.8193 | 22 / 54 |
+| **Current** (`class_weight: balanced`, depth 4) | **0.7663** | **0.8148** | 0.6111 | 0.6984 | 0.8202 | **10 / 54** |
 
-Recall is the key metric for screening: the baseline misses 22 of 54 diabetic
-patients. Improving it is the goal of the experiments in step 4.
+Recall is the key metric for screening: a missed diabetic patient costs more
+than a false alarm. Models are compared on the 5-fold cross-validated recall
+of the training set; the test set is only used to confirm the final choice.
+
+---
+
+## 📈 Experiment Tracking & Model Registry
+
+Every pipeline run is logged to [MLflow on DagsHub](https://dagshub.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline/experiments) when `.env` is configured (see [`.env.example`](.env.example)):
+all parameters, metrics, the DVC data hash, the Git commit and the model.
+
+```bash
+cp .env.example .env          # then fill in your DagsHub user and token
+make repro                    # runs the pipeline and logs the run to MLflow
+uv run dvc exp run -S train.max_depth=8   # try a variant (also logged)
+make register                 # register the model, promote it if it is better
+```
+
+The production model is `models:/diabetes-classifier@champion`. A new version
+only becomes the champion if its cross-validated recall beats the current one.
 
 ---
 
@@ -176,7 +195,7 @@ patients. Improving it is the goal of the experiments in step 4.
 - [x] **Step 1** — Foundations: structure, environment, code quality, pre-commit
 - [x] **Step 2** — Data versioning (DVC + DagsHub)
 - [x] **Step 3** — Modular ML pipeline
-- [ ] **Step 4** — Experiment tracking & model registry (MLflow)
+- [x] **Step 4** — Experiment tracking & model registry (MLflow)
 - [ ] **Step 5** — ML testing & data validation
 - [ ] **Step 6** — Continuous Integration (GitHub Actions + CML)
 - [ ] **Step 7** — Model serving & containerization (FastAPI + Docker)
