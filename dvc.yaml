@@ -10,6 +10,7 @@ stages:
     deps:
       - src/config.py
       - src/data/prepare.py
+      - src/data/schemas.py
       - data/raw/diabetes.csv
     params:
       - data

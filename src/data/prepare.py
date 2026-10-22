@@ -13,6 +13,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.config import DEFAULT_PARAMS_PATH, DataConfig, load_config
+from src.data.schemas import prepared_schema, raw_schema, validate
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,10 @@ def split(df: pd.DataFrame, config: DataConfig) -> tuple[pd.DataFrame, pd.DataFr
 
 def run(config: DataConfig) -> tuple[Path, Path]:
     """Execute the full preparation stage and return the written file paths."""
-    raw = load_raw(config.raw_path, [*config.features, config.target])
+    raw = validate(load_raw(config.raw_path, [*config.features, config.target]), raw_schema(config))
     train, test = split(clean(raw, config), config)
+    schema = prepared_schema(config)
+    train, test = validate(train, schema), validate(test, schema)
 
     config.processed_dir.mkdir(parents=True, exist_ok=True)
     train_path = config.processed_dir / TRAIN_FILENAME
