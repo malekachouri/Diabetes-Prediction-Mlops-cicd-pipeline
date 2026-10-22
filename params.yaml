@@ -25,11 +25,11 @@ data:
 train:
   model_path: models/model.joblib
   n_estimators: 200
-  max_depth: 6
+  max_depth: 4
   min_samples_leaf: 1
   # null = every patient has the same weight; balanced = weight classes by
   # inverse frequency, so the minority class (diabetic) counts more
-  class_weight: null
+  class_weight: balanced
   random_state: 42
 
 evaluate:
