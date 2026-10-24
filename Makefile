@@ -16,7 +16,8 @@ TESTS := tests
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
-        data-pull data-push data-status repro metrics dag register clean
+        test-unit test-data test-model data-pull data-push data-status repro metrics dag \
+        register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -45,8 +46,17 @@ typecheck: ## Check types (mypy)
 security: ## Scan code for security issues (bandit)
 > uv run bandit -q -c pyproject.toml -r $(SRC)
 
-test: ## Run tests with coverage (pytest)
+test: ## Run all tests with coverage (fails below 80%)
 > uv run pytest
+
+test-unit: ## Run the unit tests of the code (no data needed)
+> uv run pytest --no-cov tests/unit
+
+test-data: ## Run the data validation tests (real data tests need make data-pull)
+> uv run pytest --no-cov tests/data
+
+test-model: ## Run the model quality gate and behavioral tests (need make repro)
+> uv run pytest --no-cov tests/model
 
 check: lint typecheck security test ## Run ALL checks (same as the CI)
 
