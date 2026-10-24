@@ -10,6 +10,7 @@ changes, a new ADR supersedes the old one.
 | [002](002-data-versioning-dvc-dagshub.md) | Data versioning with DVC and DagsHub | Accepted |
 | [003](003-ml-pipeline-design.md) | ML pipeline design | Accepted |
 | [004](004-experiment-tracking-and-model-registry.md) | Experiment tracking and model registry with MLflow | Accepted |
+| [005](005-testing-strategy.md) | Testing strategy for code, data and model | Accepted |
 
 ## Template
 
