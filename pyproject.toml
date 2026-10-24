@@ -94,7 +94,7 @@ source = ["src"]
 branch = true
 
 [tool.coverage.report]
-fail_under = 0          # will be raised to 80 in step 5
+fail_under = 80         # the test run fails below 80% coverage of src/
 show_missing = true
 skip_empty = true
 exclude_also = [

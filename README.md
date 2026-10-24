@@ -190,13 +190,33 @@ only becomes the champion if its cross-validated recall beats the current one.
 
 ---
 
+## ✅ Tests
+
+| Layer | Folder | What it checks | Needs data |
+|---|---|---|---|
+| Unit | `tests/unit/` | config, prepare, train, evaluate, tracking, registry code | No |
+| Data | `tests/data/` | pandera schemas: plausible ranges, impossible zeros, class balance | Rules: no · real data: yes |
+| Model | `tests/model/` | quality gate (recall >= 0.75, ROC-AUC >= 0.75...) and behavior (obvious cases, risk factors, invariance) | Yes |
+
+```bash
+make check        # lint + types + security + all tests (coverage >= 80%)
+make test-unit    # fast, no data needed
+make test-data    # data validation
+make test-model   # model quality gate and behavioral tests
+```
+
+Tests that need the real data or the trained model are skipped when they are
+not available (`make data-pull` and `make repro` provide them).
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] **Step 1** — Foundations: structure, environment, code quality, pre-commit
 - [x] **Step 2** — Data versioning (DVC + DagsHub)
 - [x] **Step 3** — Modular ML pipeline
 - [x] **Step 4** — Experiment tracking & model registry (MLflow)
-- [ ] **Step 5** — ML testing & data validation
+- [x] **Step 5** — ML testing & data validation
 - [ ] **Step 6** — Continuous Integration (GitHub Actions + CML)
 - [ ] **Step 7** — Model serving & containerization (FastAPI + Docker)
 - [ ] **Step 8** — Continuous Deployment & GitOps (GHCR + ArgoCD)
