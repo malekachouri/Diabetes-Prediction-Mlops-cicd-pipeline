@@ -75,9 +75,11 @@ cannot start. Everything must stay free and run on a developer machine.
 **Negative**
 - A deploy key that can push to `main` is a sensitive secret; it is used by a
   single job and can be revoked from the repository settings.
-- Every image build changes the dependency layer (about 400 MB), which the
-  cluster must download for each new version; a stuck pull needs a manual
-  `crictl pull` and pod restart.
+- Without a shared build cache, every CI build produced a new dependency
+  layer (about 117 MB compressed) that the cluster downloaded for each new
+  version, and the pull sometimes stalled. The CI now reuses a BuildKit
+  cache (GitHub Actions cache): the layer only changes with `uv.lock`. A
+  stuck pull still needs a manual `crictl pull` and a pod restart.
 - Argo CD polls Git every 3 minutes: a deployment starts up to 3 minutes
   after the tag commit, unless a refresh is requested.
 - The local cluster is not production: one node, no ingress, no TLS.
