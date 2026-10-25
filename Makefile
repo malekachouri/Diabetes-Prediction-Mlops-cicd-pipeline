@@ -20,6 +20,8 @@ PORT ?= 8002
 
 # Name of the API Docker image (override: make docker-build IMAGE=my-api)
 IMAGE ?= diabetes-api
+# Name of the scheduled drift check image
+DRIFT_IMAGE ?= diabetes-drift
 
 # Extra docker build flags (the CI adds its layer cache)
 DOCKER_BUILD_FLAGS ?=
@@ -40,9 +42,9 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
-        docker-push kind-up kind-down k8s-apply k8s-set-image argocd-install argocd-app \
+        docker-build-drift docker-smoke-drift docker-push kind-up kind-down k8s-apply k8s-set-image argocd-install argocd-app \
         argocd-ui monitoring-app prometheus-ui grafana-ui traffic traffic-drift \
-        drift-collect drift-report register clean
+        drift-collect drift-report drift-run-now register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -160,13 +162,23 @@ docker-run: ## Run the API image on http://127.0.0.1:PORT (Ctrl+C to stop)
 docker-smoke: ## Smoke test the API image: /health, /predict, non-root user
 > docker/smoke-test.sh $(IMAGE):latest
 
-docker-push: ## Push the API image to REGISTRY, tagged with the Git commit and latest
+docker-build-drift: ## Build the drift check image with the training data (needs data-pull)
+> docker build $(DOCKER_BUILD_FLAGS) -f docker/drift.Dockerfile -t $(DRIFT_IMAGE):latest .
+
+docker-smoke-drift: ## Check that the drift image runs Evidently on its reference data
+> docker run --rm --read-only --tmpfs /tmp $(DRIFT_IMAGE):latest python -c \
+>   "from src.monitoring.drift import load_reference; from src.config import load_config; \
+>   c = load_config().data; print(len(load_reference(c.processed_dir, c.features)), 'reference rows')"
+
+docker-push: ## Push the API and drift images to REGISTRY, tagged with the commit and latest
 > @tag="$$(git rev-parse --short HEAD)"; \
->   for version in "$$tag" latest; do \
->     docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):$$version; \
->     docker push $(REGISTRY)/$(IMAGE):$$version; \
->   done; \
->   echo "Published $(REGISTRY)/$(IMAGE):$$tag"
+>   for image in $(IMAGE) $(DRIFT_IMAGE); do \
+>     for version in "$$tag" latest; do \
+>       docker tag $$image:latest $(REGISTRY)/$$image:$$version; \
+>       docker push $(REGISTRY)/$$image:$$version; \
+>     done; \
+>     echo "Published $(REGISTRY)/$$image:$$tag"; \
+>   done
 
 # ---------- Kubernetes (local kind cluster) ----------
 kind-up: ## Create the local kind cluster (infra/k8s/kind-config.yaml)
@@ -228,6 +240,13 @@ drift-collect: ## Collect the predictions logged by the API pods in data/product
 > kubectl --context $(KUBE_CONTEXT) -n diabetes logs -l app.kubernetes.io/name=diabetes-api \
 >   --tail=-1 | { grep '^{"event": "prediction"' || true; } > data/production/predictions.jsonl
 > @wc -l < data/production/predictions.jsonl | xargs echo "predictions collected:"
+
+drift-run-now: ## Run the scheduled drift check now in the cluster, then show its logs
+> @job=drift-monitor-manual-$$(date +%s); \
+>   kubectl --context $(KUBE_CONTEXT) -n diabetes create job --from=cronjob/drift-monitor $$job && \
+>   kubectl --context $(KUBE_CONTEXT) -n diabetes wait --for=condition=complete job/$$job \
+>     --timeout=300s; \
+>   kubectl --context $(KUBE_CONTEXT) -n diabetes logs job/$$job
 
 drift-report: ## Compare the collected predictions with the training data (Evidently)
 > uv run python -m src.monitoring.drift
