@@ -21,6 +21,9 @@ PORT ?= 8002
 # Name of the API Docker image (override: make docker-build IMAGE=my-api)
 IMAGE ?= diabetes-api
 
+# Extra docker build flags (the CI adds its layer cache)
+DOCKER_BUILD_FLAGS ?=
+
 # Container registry of the published image (override: make docker-push REGISTRY=...)
 REGISTRY ?= ghcr.io/malekachouri
 
@@ -148,7 +151,7 @@ serve: ## Start the prediction API on http://127.0.0.1:PORT (default 8002, docs:
 
 # ---------- Docker ----------
 docker-build: ## Build the API image with the local model (needs make data-pull)
-> docker build -f docker/serve.Dockerfile \
+> docker build $(DOCKER_BUILD_FLAGS) -f docker/serve.Dockerfile \
 >   --build-arg MODEL_VERSION=$$(git rev-parse --short HEAD) -t $(IMAGE):latest .
 
 docker-run: ## Run the API image on http://127.0.0.1:PORT (Ctrl+C to stop)
