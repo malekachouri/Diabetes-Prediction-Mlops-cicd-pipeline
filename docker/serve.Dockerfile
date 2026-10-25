@@ -28,6 +28,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ---------- Stage 2: runtime image (no uv, no build tools) ----------
 FROM python:3.11.17-slim-trixie AS runtime
 
+# Links the published package to its repository on GitHub
+LABEL org.opencontainers.image.source="https://github.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline" \
+      org.opencontainers.image.description="Diabetes prediction API (FastAPI + scikit-learn)" \
+      org.opencontainers.image.licenses="MIT"
+
 # Run as an unprivileged user, never as root
 RUN groupadd --system app && useradd --system --gid app --no-create-home app
 

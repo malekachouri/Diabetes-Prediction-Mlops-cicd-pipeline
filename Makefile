@@ -21,13 +21,16 @@ PORT ?= 8002
 # Name of the API Docker image (override: make docker-build IMAGE=my-api)
 IMAGE ?= diabetes-api
 
+# Container registry of the published image (override: make docker-push REGISTRY=...)
+REGISTRY ?= ghcr.io/malekachouri
+
 # Export the variables of .env (MLflow settings) when the file exists
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
-        register clean
+        docker-push register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -144,6 +147,14 @@ docker-run: ## Run the API image on http://127.0.0.1:PORT (Ctrl+C to stop)
 
 docker-smoke: ## Smoke test the API image: /health, /predict, non-root user
 > docker/smoke-test.sh $(IMAGE):latest
+
+docker-push: ## Push the API image to REGISTRY, tagged with the Git commit and latest
+> @tag="$$(git rev-parse --short HEAD)"; \
+>   for version in "$$tag" latest; do \
+>     docker tag $(IMAGE):latest $(REGISTRY)/$(IMAGE):$$version; \
+>     docker push $(REGISTRY)/$(IMAGE):$$version; \
+>   done; \
+>   echo "Published $(REGISTRY)/$(IMAGE):$$tag"
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
