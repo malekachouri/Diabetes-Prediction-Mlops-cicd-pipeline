@@ -121,8 +121,24 @@ jobs:
           name: model
           path: models
 
+      # Layer cache shared between runs: while uv.lock does not change, the
+      # dependency layer keeps the same digest, so the cluster does not
+      # download it again (about 117 MB) for each new version
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Expose the GitHub runtime to the build cache
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
       - name: Build the image
-        run: make docker-build
+        env:
+          BUILDX_BUILDER: ${{ steps.buildx.outputs.name }}   # the builder that can export a cache
+          DOCKER_BUILD_FLAGS: >-
+            --load
+            --cache-from type=gha,scope=api
+            --cache-to type=gha,scope=api,mode=max
+        run: make docker-build DOCKER_BUILD_FLAGS="$DOCKER_BUILD_FLAGS"
 
       - name: Smoke test the image
         run: make docker-smoke        # /health, /predict, 422 on bad input, non-root user
