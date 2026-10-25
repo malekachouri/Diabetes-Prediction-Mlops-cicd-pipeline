@@ -152,3 +152,42 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cml comment update --target=pr --watermark-title="Model report" reports/report.md
+
+  metrics-report:
+    name: Metrics report
+    needs: data-and-model             # metrics are trusted once dvc.lock is verified
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write            # post the report as a pull request comment
+    steps:
+      - name: Check out the code with its history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0              # dvc reads the metrics of the base branch from git
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+
+      - name: Install the locked environment
+        run: make install-ci
+
+      - name: Install CML
+        uses: iterative/setup-cml@e5f9f4673e0a8f275c45cc66dbbfd29c8469fb4e # v2.1.0
+        with:
+          version: 0.20.6
+          vega: false                 # no plots in the report
+
+      - name: Build the report
+        env:
+          BASE: origin/${{ github.base_ref }}
+        run: make report              # metrics and params diff against the base branch
+
+      - name: Post the report on the pull request
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cml comment update --target=pr --watermark-title="Model report" reports/report.md
