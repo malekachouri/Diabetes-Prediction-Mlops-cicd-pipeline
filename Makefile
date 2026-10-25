@@ -41,7 +41,8 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
         docker-push kind-up kind-down k8s-apply k8s-set-image argocd-install argocd-app \
-        argocd-ui monitoring-app prometheus-ui grafana-ui register clean
+        argocd-ui monitoring-app prometheus-ui grafana-ui traffic traffic-drift \
+        drift-collect drift-report register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -214,6 +215,23 @@ grafana-ui: ## Grafana on http://localhost:3001 (prints the admin password, Ctrl
 >   kubectl --context $(KUBE_CONTEXT) -n monitoring get secret grafana \
 >     -o jsonpath='{.data.admin-password}' | base64 -d; echo
 > kubectl --context $(KUBE_CONTEXT) -n monitoring port-forward svc/grafana 3001:80
+
+# ---------- Data drift (Evidently) ----------
+traffic: ## Send 300 patients sampled from the test set to the API in the cluster
+> uv run python -m src.monitoring.simulate --url http://localhost:30080 --size 300
+
+traffic-drift: ## Send 300 patients from a shifted population (older, more glucose)
+> uv run python -m src.monitoring.simulate --url http://localhost:30080 --size 300 --drift
+
+drift-collect: ## Collect the predictions logged by the API pods in data/production/
+> @mkdir -p data/production
+> kubectl --context $(KUBE_CONTEXT) -n diabetes logs -l app.kubernetes.io/name=diabetes-api \
+>   --tail=-1 | { grep '^{"event": "prediction"' || true; } > data/production/predictions.jsonl
+> @wc -l < data/production/predictions.jsonl | xargs echo "predictions collected:"
+
+drift-report: ## Compare the collected predictions with the training data (Evidently)
+> uv run python -m src.monitoring.drift
+> @echo "Report: reports/drift/drift_report.html"
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
