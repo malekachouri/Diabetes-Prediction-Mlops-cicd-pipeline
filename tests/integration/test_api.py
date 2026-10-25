@@ -1,12 +1,14 @@
 """Integration tests of the prediction API through HTTP requests."""
 
+import json
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from src.serving.app import create_app
+from src.serving.app import PREDICTION_LOGGER, create_app
 from src.serving.model import ServingSettings
 from src.serving.schemas import EXAMPLE_PATIENT
 
@@ -74,3 +76,22 @@ def test_app_does_not_start_without_a_model(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError), TestClient(app):
         pass
+
+
+def test_each_prediction_is_logged_as_json(client: TestClient) -> None:
+    records: list[str] = []
+    handler = logging.Handler()
+    handler.emit = lambda record: records.append(record.getMessage())  # type: ignore[method-assign]
+    logger = logging.getLogger(PREDICTION_LOGGER)
+    logger.addHandler(handler)
+    try:
+        client.post("/predict", json={**EXAMPLE_PATIENT, "glucose": None})
+    finally:
+        logger.removeHandler(handler)
+
+    record = json.loads(records[-1])
+    assert record["event"] == "prediction"
+    assert record["model_version"] == "test"
+    assert record["features"]["Glucose"] is None  # training column names
+    assert record["features"]["Age"] == 50
+    assert set(record) == {"event", "model_version", "features", "probability", "diabetic"}
