@@ -98,6 +98,9 @@ jobs:
     needs: data-and-model             # build the image with the model that passed the tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write                 # publish the image to GitHub Container Registry
     steps:
       - name: Check out the code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -113,6 +116,18 @@ jobs:
 
       - name: Smoke test the image
         run: make docker-smoke        # /health, /predict, 422 on bad input, non-root user
+
+      # Only after a merge on main: pull requests build and test the image, never publish it
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+
+      - name: Publish the tested image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: make docker-push         # ghcr.io/<owner>/diabetes-api:<commit> and :latest
 
   metrics-report:
     name: Metrics report
