@@ -1,0 +1,13 @@
+# Local environment: kind cluster on the developer machine
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: diabetes
+resources:
+  - namespace.yaml
+  - ../../base
+patches:
+  - path: service-nodeport.yaml
+# Deployed version of the API: the CI updates this tag after each publication
+images:
+  - name: ghcr.io/malekachouri/diabetes-api
+    newTag: cfcdf96
