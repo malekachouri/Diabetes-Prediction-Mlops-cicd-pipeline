@@ -41,8 +41,7 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
         docker-push kind-up kind-down k8s-apply k8s-set-image argocd-install argocd-app \
-        argocd-ui \
-        register clean
+        argocd-ui monitoring-app prometheus-ui grafana-ui register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -201,6 +200,19 @@ argocd-ui: ## Argo CD UI on https://localhost:8443 (prints the admin password, C
 >   kubectl --context $(KUBE_CONTEXT) -n argocd get secret argocd-initial-admin-secret \
 >     -o jsonpath='{.data.password}' | base64 -d; echo
 > kubectl --context $(KUBE_CONTEXT) -n argocd port-forward svc/argocd-server 8443:443
+
+# ---------- Monitoring (Prometheus + Grafana in the kind cluster) ----------
+monitoring-app: ## Hand Prometheus, Grafana and the dashboards over to Argo CD
+> kubectl --context $(KUBE_CONTEXT) apply -f infra/argocd/monitoring.yaml
+
+prometheus-ui: ## Prometheus UI on http://localhost:9090 (Ctrl+C to stop)
+> kubectl --context $(KUBE_CONTEXT) -n monitoring port-forward svc/prometheus-server 9090:80
+
+grafana-ui: ## Grafana on http://localhost:3001 (prints the admin password, Ctrl+C to stop)
+> @printf 'user: admin\npassword: '; \
+>   kubectl --context $(KUBE_CONTEXT) -n monitoring get secret grafana \
+>     -o jsonpath='{.data.admin-password}' | base64 -d; echo
+> kubectl --context $(KUBE_CONTEXT) -n monitoring port-forward svc/grafana 3001:80
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
