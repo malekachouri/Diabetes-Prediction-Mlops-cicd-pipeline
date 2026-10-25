@@ -26,7 +26,8 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
-        pipeline-check metrics report dag serve docker-build docker-run register clean
+        pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
+        register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -140,6 +141,9 @@ docker-build: ## Build the API image with the local model (needs make data-pull)
 
 docker-run: ## Run the API image on http://127.0.0.1:PORT (Ctrl+C to stop)
 > docker run --rm -p $(PORT):8000 $(IMAGE):latest
+
+docker-smoke: ## Smoke test the API image: /health, /predict, non-root user
+> docker/smoke-test.sh $(IMAGE):latest
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
