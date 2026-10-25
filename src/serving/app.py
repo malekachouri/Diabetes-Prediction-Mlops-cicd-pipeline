@@ -2,11 +2,15 @@
 
 Run locally with ``make serve``, then open http://127.0.0.1:8000/docs.
 The model is loaded once at startup; the app does not start without it.
-Prometheus metrics are exposed on ``/metrics``.
+Prometheus metrics are exposed on ``/metrics``, and every prediction is logged
+as one JSON line on stdout (input of the drift detection, src/monitoring).
 """
 
 from __future__ import annotations
 
+import json
+import logging
+import sys
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -19,10 +23,25 @@ from src.serving.metrics import create_metrics
 from src.serving.model import ServingSettings, load_model
 from src.serving.schemas import FEATURE_COLUMNS, Health, PatientFeatures, Prediction
 
+PREDICTION_LOGGER = "diabetes_api.predictions"
+
+
+def prediction_logger() -> logging.Logger:
+    """Logger writing one raw JSON line per prediction on stdout."""
+    logger = logging.getLogger(PREDICTION_LOGGER)
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False  # not repeated by the uvicorn or root handlers
+    return logger
+
 
 def create_app(settings: ServingSettings | None = None) -> FastAPI:
     """Build the API. Settings default to the ``MODEL_*`` environment variables."""
     metrics = create_metrics()
+    predictions_log = prediction_logger()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -81,11 +100,22 @@ def create_app(settings: ServingSettings | None = None) -> FastAPI:
         probability = float(model.predict_proba(features)[0, 1])
         diabetic = bool(model.predict(features)[0] == 1)
 
+        values = patient.model_dump()
         metrics.predictions.labels(diabetic=str(diabetic).lower()).inc()
         metrics.probability.observe(probability)
-        for field, value in patient.model_dump().items():
+        for field, value in values.items():
             if value is None:
                 metrics.missing_inputs.labels(feature=field).inc()
+
+        # Training column names, so that the logs compare directly with the training data
+        record = {
+            "event": "prediction",
+            "model_version": request.app.state.model_version,
+            "features": {column: values[field] for field, column in FEATURE_COLUMNS.items()},
+            "probability": round(probability, 4),
+            "diabetic": diabetic,
+        }
+        predictions_log.info(json.dumps(record))
 
         return Prediction(
             diabetic=diabetic,

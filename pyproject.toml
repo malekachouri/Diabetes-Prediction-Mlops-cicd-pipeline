@@ -29,6 +29,9 @@ dev = [
     "ruff>=0.17.1",
     "types-pyyaml>=6.0.12.20260906",
 ]
+monitoring = [
+    "evidently>=0.7.23",
+]
 tracking = [
     "mlflow>=3.17.1",
 ]
@@ -83,6 +86,12 @@ addopts = [
     "--cov=src",
     "--cov-report=term-missing",
 ]
+# Deprecations raised inside Evidently and its dependencies at import time:
+# they are not caused by this project's code and cannot be fixed here
+filterwarnings = [
+    "ignore::DeprecationWarning:litestar.*",
+    "ignore::DeprecationWarning:evidently.*",
+]
 markers = [
     "slow: slow tests (full training)",
     "integration: integration tests (API, external services)",
@@ -126,4 +135,4 @@ exclude_dirs = ["tests", ".venv", "notebooks"]
 #  UV: dependency groups installed by default
 # ==========================================================
 [tool.uv]
-default-groups = ["dev", "data", "tracking"]
+default-groups = ["dev", "data", "tracking", "monitoring"]
