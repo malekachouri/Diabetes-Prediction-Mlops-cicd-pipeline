@@ -16,12 +16,12 @@ TESTS := tests
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
-        test-unit test-data test-model data-pull data-push data-status repro metrics dag \
-        register clean
+        test-unit test-data test-model data-pull data-push data-status repro pipeline-check \
+        metrics dag register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
->   awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
+>   awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 # ---------- Environment ----------
 install: ## Install the dev environment + pre-commit hooks
@@ -77,6 +77,15 @@ data-status: ## Show local and remote data status
 # ---------- ML pipeline (DVC) ----------
 repro: ## Run the ML pipeline (only the stages that changed), logged to MLflow if .env exists
 > $(LOAD_ENV) uv run dvc repro
+
+pipeline-check: ## Fail if code, params or data changed without `make repro`
+> @status="$$(uv run dvc status --json)"; \
+>   if [ "$$status" != "{}" ]; then \
+>     uv run dvc status; \
+>     echo "Pipeline not up to date: run 'make repro', then commit dvc.lock"; \
+>     exit 1; \
+>   fi; \
+>   echo "Pipeline is up to date with dvc.lock"
 
 metrics: ## Show the current metrics and the diff with the last commit
 > uv run dvc metrics show
