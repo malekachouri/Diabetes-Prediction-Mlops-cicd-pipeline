@@ -1,0 +1,8 @@
+# Allowlist: only what the image needs is sent to the Docker build.
+# Secrets (.env, .dvc/config.local), data and caches can never leak into it.
+*
+!pyproject.toml
+!uv.lock
+!src/
+!models/model.joblib
+**/__pycache__
