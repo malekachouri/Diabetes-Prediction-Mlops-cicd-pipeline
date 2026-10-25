@@ -28,13 +28,17 @@ REGISTRY ?= ghcr.io/malekachouri
 KIND_CLUSTER ?= diabetes
 KUBE_CONTEXT := kind-$(KIND_CLUSTER)
 
+# Pinned Argo CD release installed in the local cluster
+ARGOCD_VERSION ?= v3.5.6
+
 # Export the variables of .env (MLflow settings) when the file exists
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
-        docker-push kind-up kind-down k8s-apply register clean
+        docker-push kind-up kind-down k8s-apply argocd-install argocd-app argocd-ui \
+        register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -171,6 +175,23 @@ k8s-apply: ## Deploy the local overlay to the kind cluster and wait for the roll
 > kubectl --context $(KUBE_CONTEXT) apply -k infra/k8s/overlays/local
 > kubectl --context $(KUBE_CONTEXT) -n diabetes rollout status deployment/diabetes-api \
 >   --timeout=180s
+
+argocd-install: ## Install Argo CD in the kind cluster and wait until it is ready
+> kubectl --context $(KUBE_CONTEXT) create namespace argocd --dry-run=client -o yaml | \
+>   kubectl --context $(KUBE_CONTEXT) apply -f -
+> kubectl --context $(KUBE_CONTEXT) apply -n argocd --server-side --force-conflicts \
+>   -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGOCD_VERSION)/manifests/install.yaml
+> kubectl --context $(KUBE_CONTEXT) -n argocd wait --for=condition=Available deployment --all \
+>   --timeout=300s
+
+argocd-app: ## Hand the API deployment over to Argo CD (infra/argocd/application.yaml)
+> kubectl --context $(KUBE_CONTEXT) apply -f infra/argocd/application.yaml
+
+argocd-ui: ## Argo CD UI on https://localhost:8443 (prints the admin password, Ctrl+C to stop)
+> @printf 'user: admin\npassword: '; \
+>   kubectl --context $(KUBE_CONTEXT) -n argocd get secret argocd-initial-admin-secret \
+>     -o jsonpath='{.data.password}' | base64 -d; echo
+> kubectl --context $(KUBE_CONTEXT) -n argocd port-forward svc/argocd-server 8443:443
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
