@@ -20,10 +20,12 @@ from evidently import DataDefinition, Dataset, Report
 from evidently.presets import DataDriftPreset
 
 from src.config import DEFAULT_PARAMS_PATH, load_config
-from src.data.prepare import TRAIN_FILENAME
 
 logger = logging.getLogger(__name__)
 
+# Training set written by the prepare stage. Not imported from src.data.prepare:
+# that module needs pandera, which is not installed in the drift check image
+REFERENCE_FILENAME = "train.csv"
 DEFAULT_CURRENT_PATH = Path("data/production/predictions.jsonl")
 DEFAULT_REPORT_DIR = Path("reports/drift")
 # Below this number of requests, the statistical tests are not meaningful
@@ -45,7 +47,7 @@ class DriftResult:
 
 def load_reference(processed_dir: Path, features: list[str]) -> pd.DataFrame:
     """Load the features of the training set, the reference distribution."""
-    return pd.read_csv(processed_dir / TRAIN_FILENAME)[features]
+    return pd.read_csv(processed_dir / REFERENCE_FILENAME)[features]
 
 
 def load_current(path: Path, features: list[str]) -> pd.DataFrame:

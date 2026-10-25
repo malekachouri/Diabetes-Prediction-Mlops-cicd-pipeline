@@ -89,11 +89,13 @@ jobs:
       - name: Tests (unit, data and model)
         run: make test                # nothing is skipped: the data and the model are here
 
-      - name: Share the tested model with the image job
+      - name: Share the tested model and its training data with the image job
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: model
-          path: models/model.joblib
+          path: |
+            models/model.joblib
+            data/processed/train.csv
           if-no-files-found: error
           retention-days: 1
 
@@ -115,11 +117,11 @@ jobs:
         id: tag
         run: echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"   # same as docker-push
 
-      - name: Download the tested model
+      - name: Download the tested model and its training data
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: model
-          path: models
+          path: .                     # models/model.joblib and data/processed/train.csv
 
       # Layer cache shared between runs: while uv.lock does not change, the
       # dependency layer keeps the same digest, so the cluster does not
@@ -143,6 +145,18 @@ jobs:
       - name: Smoke test the image
         run: make docker-smoke        # /health, /predict, 422 on bad input, non-root user
 
+      - name: Build the drift check image
+        env:
+          BUILDX_BUILDER: ${{ steps.buildx.outputs.name }}
+          DOCKER_BUILD_FLAGS: >-
+            --load
+            --cache-from type=gha,scope=drift
+            --cache-to type=gha,scope=drift,mode=max
+        run: make docker-build-drift DOCKER_BUILD_FLAGS="$DOCKER_BUILD_FLAGS"
+
+      - name: Smoke test the drift check image
+        run: make docker-smoke-drift  # Evidently and the reference data load read-only
+
       # Only after a merge on main: pull requests build and test the image, never publish it
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -153,7 +167,7 @@ jobs:
 
       - name: Publish the tested image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: make docker-push         # ghcr.io/<owner>/diabetes-api:<commit> and :latest
+        run: make docker-push         # diabetes-api and diabetes-drift :<commit> and :latest
 
   deploy:
     name: Deploy (update the image tag in Git)
