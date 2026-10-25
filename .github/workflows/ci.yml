@@ -85,6 +85,35 @@ jobs:
       - name: Tests (unit, data and model)
         run: make test                # nothing is skipped: the data and the model are here
 
+      - name: Share the tested model with the image job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: model
+          path: models/model.joblib
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-image:
+    name: Docker image
+    needs: data-and-model             # build the image with the model that passed the tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download the tested model
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: model
+          path: models
+
+      - name: Build the image
+        run: make docker-build
+
+      - name: Smoke test the image
+        run: make docker-smoke        # /health, /predict, 422 on bad input, non-root user
+
   metrics-report:
     name: Metrics report
     needs: data-and-model             # metrics are trusted once dvc.lock is verified
