@@ -11,3 +11,5 @@ patches:
 images:
   - name: ghcr.io/malekachouri/diabetes-api
     newTag: "d65d29f"
+  - name: ghcr.io/malekachouri/diabetes-drift
+    newTag: "d65d29f"
