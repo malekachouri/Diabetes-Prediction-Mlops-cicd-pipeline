@@ -24,16 +24,20 @@ IMAGE ?= diabetes-api
 # Container registry of the published image (override: make docker-push REGISTRY=...)
 REGISTRY ?= ghcr.io/malekachouri
 
+# Local Kubernetes cluster: every kubectl command targets it explicitly
+KIND_CLUSTER ?= diabetes
+KUBE_CONTEXT := kind-$(KIND_CLUSTER)
+
 # Export the variables of .env (MLflow settings) when the file exists
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
-        docker-push register clean
+        docker-push kind-up kind-down k8s-apply register clean
 
 help: ## Show this help
-> @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
+> @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
 >   awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 # ---------- Environment ----------
@@ -155,6 +159,18 @@ docker-push: ## Push the API image to REGISTRY, tagged with the Git commit and l
 >     docker push $(REGISTRY)/$(IMAGE):$$version; \
 >   done; \
 >   echo "Published $(REGISTRY)/$(IMAGE):$$tag"
+
+# ---------- Kubernetes (local kind cluster) ----------
+kind-up: ## Create the local kind cluster (infra/k8s/kind-config.yaml)
+> kind create cluster --config infra/k8s/kind-config.yaml
+
+kind-down: ## Delete the local kind cluster
+> kind delete cluster --name $(KIND_CLUSTER)
+
+k8s-apply: ## Deploy the local overlay to the kind cluster and wait for the rollout
+> kubectl --context $(KUBE_CONTEXT) apply -k infra/k8s/overlays/local
+> kubectl --context $(KUBE_CONTEXT) -n diabetes rollout status deployment/diabetes-api \
+>   --timeout=180s
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
