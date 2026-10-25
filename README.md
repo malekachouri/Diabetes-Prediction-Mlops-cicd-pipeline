@@ -4,6 +4,7 @@
 > automated MLOps pipeline: from commit to production, using only free and
 > open-source tools.
 
+[![CI](https://github.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000)
@@ -206,7 +207,46 @@ make test-model   # model quality gate and behavioral tests
 ```
 
 Tests that need the real data or the trained model are skipped when they are
-not available (`make data-pull` and `make repro` provide them).
+not available (`make data-pull` and `make repro` provide them). The CI pulls
+the data, so none of them is skipped there.
+
+---
+
+## 🔄 Continuous Integration
+
+Every pull request and every push to `main` runs [`ci.yml`](.github/workflows/ci.yml)
+on GitHub Actions. Each step calls the same `make` target as a developer, so a
+CI failure is reproduced locally with the same command.
+
+```
+Pull request
+   │
+   ▼
+① Lint, types, security and tests   make lint · typecheck · security · test   (no data)
+   │ green
+   ▼
+② Data and model tests              make data-pull · pipeline-check · test    (DagsHub data)
+   │ green
+   ▼
+③ Metrics report                    make report → CML comment on the PR       (PR only)
+```
+
+| Job | Required to merge | What it guarantees |
+|---|---|---|
+| Lint, types, security and tests | Yes | Clean, typed, secure code; unit tests pass with coverage >= 80% |
+| Data and model tests | Yes | `dvc.lock` matches the code and params; all 76 tests run (none skipped), including the model quality gate |
+| Metrics report | No | Reviewers see the metrics and params diff against `main` in a PR comment |
+
+**Security**
+- Actions are pinned to a full commit SHA; Dependabot proposes updates weekly.
+- The workflow token is read-only; only the report job can write PR comments.
+- The DagsHub token is a repository secret (`DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`),
+  passed through `env:` to a single step. Pull requests from forks skip the data jobs.
+
+```bash
+make pipeline-check   # fail if code, params or data changed without `make repro`
+make report           # write the metrics and params diff against origin/main
+```
 
 ---
 
@@ -217,7 +257,7 @@ not available (`make data-pull` and `make repro` provide them).
 - [x] **Step 3** — Modular ML pipeline
 - [x] **Step 4** — Experiment tracking & model registry (MLflow)
 - [x] **Step 5** — ML testing & data validation
-- [ ] **Step 6** — Continuous Integration (GitHub Actions + CML)
+- [x] **Step 6** — Continuous Integration (GitHub Actions + CML)
 - [ ] **Step 7** — Model serving & containerization (FastAPI + Docker)
 - [ ] **Step 8** — Continuous Deployment & GitOps (GHCR + ArgoCD)
 - [ ] **Step 9** — Monitoring (Prometheus + Grafana + Evidently)
