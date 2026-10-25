@@ -37,7 +37,8 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
-        docker-push kind-up kind-down k8s-apply argocd-install argocd-app argocd-ui \
+        docker-push kind-up kind-down k8s-apply k8s-set-image argocd-install argocd-app \
+        argocd-ui \
         register clean
 
 help: ## Show this help
@@ -175,6 +176,11 @@ k8s-apply: ## Deploy the local overlay to the kind cluster and wait for the roll
 > kubectl --context $(KUBE_CONTEXT) apply -k infra/k8s/overlays/local
 > kubectl --context $(KUBE_CONTEXT) -n diabetes rollout status deployment/diabetes-api \
 >   --timeout=180s
+
+k8s-set-image: ## Set the deployed image tag in the local overlay (TAG=<commit>)
+> @[[ "$(TAG)" =~ ^[0-9a-f]{7,40}$$ ]] || { echo "usage: make k8s-set-image TAG=<commit>"; exit 1; }
+> sed -i 's/^\(    newTag: \).*/\1$(TAG)/' infra/k8s/overlays/local/kustomization.yaml
+> @grep -n "newTag" infra/k8s/overlays/local/kustomization.yaml
 
 argocd-install: ## Install Argo CD in the kind cluster and wait until it is ready
 > kubectl --context $(KUBE_CONTEXT) create namespace argocd --dry-run=client -o yaml | \
