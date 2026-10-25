@@ -17,8 +17,8 @@ stages:
       size: 2841
     - path: src/data/schemas.py
       hash: md5
-      md5: 54ca1da879eb7b772995267008b25861
-      size: 3273
+      md5: dd44d884a9cfb0680b2d6f5608538159
+      size: 2967
     params:
       params.yaml:
         data:

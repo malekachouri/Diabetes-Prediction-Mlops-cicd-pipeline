@@ -11,18 +11,8 @@ import pandas as pd
 import pandera.pandas as pa
 
 from src.config import DataConfig
+from src.data.bounds import COLUMN_BOUNDS
 
-# Plausible (min, max) bounds of each column, from domain knowledge.
-COLUMN_BOUNDS: dict[str, tuple[float, float]] = {
-    "Pregnancies": (0, 20),
-    "Glucose": (40, 400),
-    "BloodPressure": (20, 200),
-    "SkinThickness": (5, 100),
-    "Insulin": (10, 1000),
-    "BMI": (10, 80),
-    "DiabetesPedigreeFunction": (0, 3),
-    "Age": (18, 120),
-}
 # A dataset below this size cannot give a meaningful stratified split.
 MIN_ROWS = 20
 # Expected share of diabetic patients; outside this range the data has drifted.
