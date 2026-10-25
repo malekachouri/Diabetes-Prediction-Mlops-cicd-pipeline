@@ -12,12 +12,15 @@ SHELL := /bin/bash
 SRC   := src
 TESTS := tests
 
+# Reference branch of the metrics report (override: make report BASE=main)
+BASE ?= origin/main
+
 # Export the variables of .env (MLflow settings) when the file exists
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model data-pull data-push data-status repro pipeline-check \
-        metrics dag register clean
+        metrics report dag register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -90,6 +93,26 @@ pipeline-check: ## Fail if code, params or data changed without `make repro`
 metrics: ## Show the current metrics and the diff with the last commit
 > uv run dvc metrics show
 > uv run dvc metrics diff
+
+report: ## Write the metrics and params diff against BASE to reports/report.md
+> @mkdir -p reports
+> @{ \
+>   echo "## Model report"; \
+>   echo ""; \
+>   echo "Metrics of this branch compared with \`$(BASE)\`."; \
+>   echo "Quality gate: recall >= 0.75, cv_recall_mean >= 0.70,"; \
+>   echo "precision >= 0.50, roc_auc >= 0.75 (tests/model)."; \
+>   echo ""; \
+>   uv run dvc metrics diff $(BASE) --all --no-path --md; \
+>   echo "### Parameters"; \
+>   echo ""; \
+>   if [ "$$(uv run dvc params diff $(BASE) --json)" = "{}" ]; then \
+>     echo "No parameter changed."; \
+>   else \
+>     uv run dvc params diff $(BASE) --no-path --md; \
+>   fi; \
+> } > reports/report.md
+> @cat reports/report.md
 
 dag: ## Show the pipeline stages graph
 > uv run dvc dag
