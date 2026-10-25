@@ -13,6 +13,7 @@ changes, a new ADR supersedes the old one.
 | [005](005-testing-strategy.md) | Testing strategy for code, data and model | Accepted |
 | [006](006-continuous-integration.md) | Continuous integration with GitHub Actions and CML | Accepted |
 | [007](007-model-serving.md) | Model serving with FastAPI and Docker | Accepted |
+| [008](008-continuous-deployment-gitops.md) | Continuous deployment with GHCR, kind and Argo CD | Accepted |
 
 ## Template
 
