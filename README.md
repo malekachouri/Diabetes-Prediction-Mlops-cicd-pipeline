@@ -63,7 +63,7 @@ deployment, monitoring and continuous retraining.
 | CI/CD | GitHub Actions, CML |
 | Serving | FastAPI |
 | Containers | Docker, GHCR, Trivy |
-| Deployment | Kubernetes (k3s), ArgoCD |
+| Deployment | GHCR, Kubernetes (kind), Kustomize, Argo CD |
 | Infrastructure as Code | Terraform |
 | Monitoring | Prometheus, Grafana, Evidently |
 
@@ -79,7 +79,8 @@ deployment, monitoring and continuous retraining.
 ├── docker/              # Dockerfile and smoke test of the API image
 ├── docs/adr/            # Architecture Decision Records
 ├── infra/
-│   ├── k8s/             # Kubernetes manifests (staging/, prod/)
+│   ├── argocd/          # Argo CD application (GitOps)
+│   ├── k8s/             # Kustomize manifests (base/, overlays/local/), kind config
 │   └── terraform/       # infrastructure as code
 ├── monitoring/          # Grafana dashboards, Evidently reports, alerts
 ├── notebooks/           # exploration only, never used in production
@@ -275,6 +276,7 @@ Pull request
    │ green
    ▼
 ④ Metrics report                    make report → CML comment on the PR       (PR only)
+⑤ Deploy                            make k8s-set-image → commit on main       (main only)
 ```
 
 | Job | Required to merge | What it guarantees |
@@ -283,10 +285,12 @@ Pull request
 | Data and model tests | Yes | `dvc.lock` matches the code and params; all 96 tests run (none skipped), including the model quality gate |
 | Docker image | Yes | The image builds with the tested model, starts, answers `/health` and `/predict` and runs as non-root |
 | Metrics report | No | Reviewers see the metrics and params diff against `main` in a PR comment |
+| Deploy | — (main only) | The published image tag is committed to the `local` overlay for Argo CD |
 
 **Security**
 - Actions are pinned to a full commit SHA; Dependabot proposes updates weekly.
-- The workflow token is read-only; only the report job can write PR comments.
+- The workflow token is read-only; only the report job can write PR comments
+  and only the image job can publish packages.
 - The DagsHub token is a repository secret (`DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`),
   passed through `env:` to a single step. Pull requests from forks skip the data jobs.
 
@@ -294,6 +298,48 @@ Pull request
 make pipeline-check   # fail if code, params or data changed without `make repro`
 make report           # write the metrics and params diff against origin/main
 ```
+
+---
+
+## 🚢 Continuous Deployment (GitOps)
+
+After every merge on `main`, the tested image is published and deployed
+without any manual command:
+
+```
+merge on main
+   ▼ CI: tests → Docker image built with the tested model and smoke tested
+   ▼ publish ghcr.io/malekachouri/diabetes-api:<commit> (and :latest)
+   ▼ Deploy job: commit "deploy: update api image to <commit>" on main
+   ▼ Argo CD (inside the cluster) syncs infra/k8s/overlays/local from main
+   ▼ rolling update: new pods ready → old pods removed
+```
+
+| Piece | Location | Role |
+|---|---|---|
+| Image registry | [GHCR](https://github.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline/pkgs/container/diabetes-api) | Public images, tagged with the commit they were built from |
+| Manifests | [`infra/k8s/`](infra/k8s/) | Kustomize base (Deployment, Service) and `local` overlay (namespace, NodePort, image tag) |
+| Cluster | [`infra/k8s/kind-config.yaml`](infra/k8s/kind-config.yaml) | Local Kubernetes cluster with kind |
+| GitOps | [`infra/argocd/application.yaml`](infra/argocd/application.yaml) | Argo CD keeps the cluster equal to Git: auto-sync, prune, self-heal |
+
+**Run it locally** (Docker, kind and kubectl required):
+
+```bash
+make kind-up          # create the kind cluster "diabetes"
+make argocd-install   # install Argo CD (pinned version)
+make argocd-app       # hand the API deployment over to Argo CD
+make argocd-ui        # Argo CD UI on https://localhost:8443
+curl -s localhost:30080/health
+```
+
+- Deploying a version is a commit that changes `newTag`; rolling back is a
+  `git revert` of that commit.
+- Rolling updates use `maxUnavailable: 0` and probes on `/health`: a version
+  that cannot start never replaces the pods that are serving.
+- Pods run as non-root, with a read-only root filesystem, no Linux
+  capabilities and no service account token.
+- The deploy job is the only one allowed to push to `main`, with a deploy key
+  in the ruleset bypass list; its commit does not trigger the CI again.
 
 ---
 
@@ -306,7 +352,7 @@ make report           # write the metrics and params diff against origin/main
 - [x] **Step 5** — ML testing & data validation
 - [x] **Step 6** — Continuous Integration (GitHub Actions + CML)
 - [x] **Step 7** — Model serving & containerization (FastAPI + Docker)
-- [ ] **Step 8** — Continuous Deployment & GitOps (GHCR + ArgoCD)
+- [x] **Step 8** — Continuous Deployment & GitOps (GHCR + ArgoCD)
 - [ ] **Step 9** — Monitoring (Prometheus + Grafana + Evidently)
 - [ ] **Step 10** — Continuous Training & feedback loop
 
