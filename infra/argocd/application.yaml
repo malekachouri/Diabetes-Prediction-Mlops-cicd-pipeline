@@ -1,0 +1,28 @@
+# Argo CD application: keeps the cluster in sync with infra/k8s/overlays/local
+# on the main branch. Deploying a new version = changing the image tag in Git.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: diabetes-api
+  namespace: argocd
+  # Deleting the application also deletes the resources it deployed
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/malekachouri/Diabetes-Prediction-Mlops-cicd-pipeline.git
+    targetRevision: main
+    path: infra/k8s/overlays/local
+  destination:
+    server: https://kubernetes.default.svc   # the cluster Argo CD runs in
+    namespace: diabetes
+  syncPolicy:
+    automated:
+      prune: true        # delete from the cluster what was deleted from Git
+      selfHeal: true     # undo manual changes made with kubectl
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
