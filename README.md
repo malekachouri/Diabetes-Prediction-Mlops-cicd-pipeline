@@ -76,7 +76,7 @@ deployment, monitoring and continuous retraining.
 ├── .github/workflows/   # CI/CD pipelines
 ├── configs/             # hyperparameters and quality-gate thresholds
 ├── data/                # DVC-tracked data (raw/, processed/) - not in Git
-├── docker/              # Dockerfiles (train, serve)
+├── docker/              # Dockerfile and smoke test of the API image
 ├── docs/adr/            # Architecture Decision Records
 ├── infra/
 │   ├── k8s/             # Kubernetes manifests (staging/, prod/)
@@ -191,6 +191,47 @@ only becomes the champion if its cross-validated recall beats the current one.
 
 ---
 
+## 🚀 Prediction API
+
+The model is served by a [FastAPI](https://fastapi.tiangolo.com/) app
+([`src/serving/`](src/serving/)).
+
+| Endpoint | Description |
+|---|---|
+| `GET /health` | API status and version of the served model |
+| `POST /predict` | Diabetes prediction for one patient |
+| `GET /docs` | Interactive documentation (Swagger UI) |
+
+```bash
+make serve            # local API on http://127.0.0.1:8002 (change it with PORT=...)
+curl -s -X POST localhost:8002/predict -H 'Content-Type: application/json' \
+  -d '{"pregnancies": 2, "glucose": 148, "blood_pressure": 72, "bmi": 33.6, "age": 50}'
+# {"diabetic":true,"probability":0.7431,"model_version":"dev"}
+```
+
+- Inputs are validated with the same plausible bounds as the training data
+  ([`src/data/bounds.py`](src/data/bounds.py)): an impossible value such as
+  `glucose: 0` returns `422`.
+- Unknown measurements (glucose, blood pressure, BMI) are sent as `null` and
+  imputed by the model pipeline, like the missing values of the training data.
+- The API refuses to start if the model file is missing or was trained on
+  other features.
+
+**Docker image** ([`docker/serve.Dockerfile`](docker/serve.Dockerfile))
+
+```bash
+make docker-build     # image with the local model, tagged with the Git commit as model version
+make docker-run       # run it on http://127.0.0.1:8002
+make docker-smoke     # start a container and check /health, /predict, 422 and the user
+```
+
+- Multi-stage build with uv: only the main dependencies, no dev, data or tracking tools.
+- Runs as a non-root user, with a Docker health check on `/health`.
+- The model is baked into the image: one image is one model version, and no
+  credentials are needed at runtime.
+
+---
+
 ## ✅ Tests
 
 | Layer | Folder | What it checks | Needs data |
@@ -198,12 +239,14 @@ only becomes the champion if its cross-validated recall beats the current one.
 | Unit | `tests/unit/` | config, prepare, train, evaluate, tracking, registry code | No |
 | Data | `tests/data/` | pandera schemas: plausible ranges, impossible zeros, class balance | Rules: no · real data: yes |
 | Model | `tests/model/` | quality gate (recall >= 0.75, ROC-AUC >= 0.75...) and behavior (obvious cases, risk factors, invariance) | Yes |
+| API | `tests/integration/` | `/health`, `/predict`, input validation (422), no startup without a model | No |
 
 ```bash
 make check        # lint + types + security + all tests (coverage >= 80%)
 make test-unit    # fast, no data needed
 make test-data    # data validation
 make test-model   # model quality gate and behavioral tests
+make test-api     # API integration tests
 ```
 
 Tests that need the real data or the trained model are skipped when they are
@@ -226,15 +269,19 @@ Pull request
    │ green
    ▼
 ② Data and model tests              make data-pull · pipeline-check · test    (DagsHub data)
+   │ green, tested model shared as an artifact
+   ▼
+③ Docker image                      make docker-build · docker-smoke          (tested model)
    │ green
    ▼
-③ Metrics report                    make report → CML comment on the PR       (PR only)
+④ Metrics report                    make report → CML comment on the PR       (PR only)
 ```
 
 | Job | Required to merge | What it guarantees |
 |---|---|---|
 | Lint, types, security and tests | Yes | Clean, typed, secure code; unit tests pass with coverage >= 80% |
-| Data and model tests | Yes | `dvc.lock` matches the code and params; all 76 tests run (none skipped), including the model quality gate |
+| Data and model tests | Yes | `dvc.lock` matches the code and params; all 96 tests run (none skipped), including the model quality gate |
+| Docker image | Yes | The image builds with the tested model, starts, answers `/health` and `/predict` and runs as non-root |
 | Metrics report | No | Reviewers see the metrics and params diff against `main` in a PR comment |
 
 **Security**
@@ -258,7 +305,7 @@ make report           # write the metrics and params diff against origin/main
 - [x] **Step 4** — Experiment tracking & model registry (MLflow)
 - [x] **Step 5** — ML testing & data validation
 - [x] **Step 6** — Continuous Integration (GitHub Actions + CML)
-- [ ] **Step 7** — Model serving & containerization (FastAPI + Docker)
+- [x] **Step 7** — Model serving & containerization (FastAPI + Docker)
 - [ ] **Step 8** — Continuous Deployment & GitOps (GHCR + ArgoCD)
 - [ ] **Step 9** — Monitoring (Prometheus + Grafana + Evidently)
 - [ ] **Step 10** — Continuous Training & feedback loop
