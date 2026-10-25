@@ -10,4 +10,4 @@ patches:
 # Deployed version of the API: the CI updates this tag after each publication
 images:
   - name: ghcr.io/malekachouri/diabetes-api
-    newTag: 52e1bdc
+    newTag: 6962545
