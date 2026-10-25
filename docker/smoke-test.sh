@@ -44,6 +44,9 @@ code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$url/predict" \
 echo "POST /predict with glucose=0 -> HTTP $code"
 [ "$code" = "422" ]
 
+curl -fsS "$url/metrics" | grep -q '^diabetes_api_predictions_total{diabetic='
+echo "GET /metrics  -> prediction counters exposed"
+
 uid="$(docker exec "$name" id -u)"
 echo "Container user id -> $uid"
 [ "$uid" != "0" ]
