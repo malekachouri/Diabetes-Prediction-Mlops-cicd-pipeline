@@ -1,0 +1,15 @@
+# Stable address of the API inside the cluster, load-balanced across the pods
+apiVersion: v1
+kind: Service
+metadata:
+  name: diabetes-api
+  labels:
+    app.kubernetes.io/name: diabetes-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: diabetes-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

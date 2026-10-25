@@ -1,0 +1,13 @@
+# Local kind cluster: expose the API on a fixed node port, mapped to the host
+# by infra/k8s/kind-config.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: diabetes-api
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

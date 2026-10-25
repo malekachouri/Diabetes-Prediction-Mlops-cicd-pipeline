@@ -1,0 +1,13 @@
+# Local Kubernetes cluster for the project: make kind-up
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: diabetes
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.34.3
+    # Host port 30080 -> node port 30080 of the diabetes-api Service
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 30080
+        listenAddress: "127.0.0.1"
+        protocol: TCP
