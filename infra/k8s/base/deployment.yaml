@@ -20,6 +20,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: diabetes-api
+      # Read by the "kubernetes-pods" job of Prometheus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
     spec:
       automountServiceAccountToken: false   # the API never calls the Kubernetes API
       securityContext:
