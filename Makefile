@@ -18,12 +18,15 @@ BASE ?= origin/main
 # Port of the local API (override: make serve PORT=8003)
 PORT ?= 8002
 
+# Name of the API Docker image (override: make docker-build IMAGE=my-api)
+IMAGE ?= diabetes-api
+
 # Export the variables of .env (MLflow settings) when the file exists
 LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
 
 .PHONY: help install install-ci lint format typecheck security test check pre-commit \
         test-unit test-data test-model test-api data-pull data-push data-status repro \
-        pipeline-check metrics report dag serve register clean
+        pipeline-check metrics report dag serve docker-build docker-run register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -129,6 +132,14 @@ register: ## Register the current model in MLflow and promote it if better (need
 # ---------- Serving ----------
 serve: ## Start the prediction API on http://127.0.0.1:PORT (default 8002, docs: /docs)
 > uv run uvicorn src.serving.app:app --reload --host 127.0.0.1 --port $(PORT)
+
+# ---------- Docker ----------
+docker-build: ## Build the API image with the local model (needs make data-pull)
+> docker build -f docker/serve.Dockerfile \
+>   --build-arg MODEL_VERSION=$$(git rev-parse --short HEAD) -t $(IMAGE):latest .
+
+docker-run: ## Run the API image on http://127.0.0.1:PORT (Ctrl+C to stop)
+> docker run --rm -p $(PORT):8000 $(IMAGE):latest
 
 # ---------- Cleanup ----------
 clean: ## Remove caches and temporary files
