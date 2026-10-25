@@ -47,3 +47,40 @@ jobs:
 
       - name: Tests
         run: make test                # data and model tests skip without data
+
+  data-and-model:
+    name: Data and model tests
+    needs: quality                    # no need to download data if the code is broken
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Repository secrets are not shared with pull requests opened from forks
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+
+      - name: Install the locked environment
+        run: make install-ci
+
+      - name: Configure the DVC remote credentials
+        env:                          # secrets go through env, never inline in the script
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          uv run dvc remote modify origin --local auth basic
+          uv run dvc remote modify origin --local user "$DAGSHUB_USERNAME"
+          uv run dvc remote modify origin --local password "$DAGSHUB_TOKEN"
+
+      - name: Pull the data and the model
+        run: make data-pull
+
+      - name: Check the pipeline is up to date
+        run: make pipeline-check      # dvc.lock must match the code, params and data
+
+      - name: Tests (unit, data and model)
+        run: make test                # nothing is skipped: the data and the model are here
