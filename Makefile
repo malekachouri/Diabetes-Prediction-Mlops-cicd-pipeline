@@ -181,8 +181,9 @@ k8s-apply: ## Deploy the local overlay to the kind cluster and wait for the roll
 
 k8s-set-image: ## Set the deployed image tag in the local overlay (TAG=<commit>)
 > @[[ "$(TAG)" =~ ^[0-9a-f]{7,40}$$ ]] || { echo "usage: make k8s-set-image TAG=<commit>"; exit 1; }
-> sed -i 's/^\(    newTag: \).*/\1$(TAG)/' infra/k8s/overlays/local/kustomization.yaml
+> sed -i 's/^\(    newTag: \).*/\1"$(TAG)"/' infra/k8s/overlays/local/kustomization.yaml
 > @grep -n "newTag" infra/k8s/overlays/local/kustomization.yaml
+> kubectl kustomize infra/k8s/overlays/local > /dev/null
 
 argocd-install: ## Install Argo CD in the kind cluster and wait until it is ready
 > kubectl --context $(KUBE_CONTEXT) create namespace argocd --dry-run=client -o yaml | \
