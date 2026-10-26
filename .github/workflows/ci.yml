@@ -28,7 +28,7 @@ permissions:
 jobs:
   quality:
     name: Lint, types, security and tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Check out the code
@@ -57,7 +57,7 @@ jobs:
   data-and-model:
     name: Data and model tests
     needs: quality                    # no need to download data if the code is broken
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     # Repository secrets are not shared with pull requests opened from forks
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
@@ -104,7 +104,7 @@ jobs:
   docker-image:
     name: Docker image
     needs: data-and-model             # build the image with the model that passed the tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -175,7 +175,7 @@ jobs:
     name: Deploy (update the image tag in Git)
     needs: docker-image               # only once the image is tested and published
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     # Deployments run one after the other, never in parallel
     concurrency:
@@ -213,11 +213,40 @@ jobs:
           done
           exit 1
 
+  register:
+    name: Register the model in MLflow
+    needs: data-and-model             # the model of main passed the tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # The model merged on main is the one deployed: register it and promote it
+    # to champion if it is better, so that the registry matches production and
+    # the Retrain workflow compares its candidates with the right champion.
+    # Idempotent: an already registered run is not registered again.
+    env:
+      MLFLOW_TRACKING_URI: https://dagshub.com/${{ github.repository }}.mlflow
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+
+      - name: Install the locked environment
+        run: make install-ci
+
+      - name: Register and promote if better than the champion
+        run: make register
+
   metrics-report:
     name: Metrics report
     needs: data-and-model             # metrics are trusted once dvc.lock is verified
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
