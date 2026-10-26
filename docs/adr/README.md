@@ -15,6 +15,7 @@ changes, a new ADR supersedes the old one.
 | [007](007-model-serving.md) | Model serving with FastAPI and Docker | Accepted |
 | [008](008-continuous-deployment-gitops.md) | Continuous deployment with GHCR, kind and Argo CD | Accepted |
 | [009](009-monitoring-and-drift-detection.md) | Monitoring and data drift detection | Accepted |
+| [010](010-continuous-training.md) | Continuous training with a human in the loop | Accepted |
 
 ## Template
 
