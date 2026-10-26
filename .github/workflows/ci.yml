@@ -8,7 +8,9 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # retrain/*: candidate branches pushed by the Retrain workflow (their pull
+    # requests are opened with GITHUB_TOKEN, which does not start workflows)
+    branches: [main, "retrain/**"]
     # The tag update pushed by the deploy job must not start a new pipeline:
     # it would publish the same code again and update the tag again, forever
     paths-ignore:

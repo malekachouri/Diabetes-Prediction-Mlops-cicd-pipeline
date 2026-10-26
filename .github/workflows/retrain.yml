@@ -1,0 +1,122 @@
+# ==========================================================
+#  Retraining (continuous training)
+#  Trains a candidate model, runs the quality gate, compares it
+#  with the champion of the MLflow Model Registry and opens a pull
+#  request only when the candidate is strictly better.
+#  Started by hand: Actions → Retrain → Run workflow.
+# ==========================================================
+name: Retrain
+
+on:
+  workflow_dispatch:
+    inputs:
+      params:
+        description: >-
+          Parameter changes of the candidate, e.g. "train.n_estimators=300 train.max_depth=5"
+          (empty = same parameters, e.g. after a new version of the data)
+        required: false
+        default: ""
+
+# One retraining at a time
+concurrency:
+  group: retrain
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  retrain:
+    name: Train, evaluate and compare with the champion
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write            # open the pull request of a better candidate
+    env:
+      MLFLOW_TRACKING_URI: https://dagshub.com/${{ github.repository }}.mlflow
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+    steps:
+      # The deploy key pushes the candidate branch: unlike GITHUB_TOKEN, its
+      # pushes start the CI, whose checks are required to merge the pull request
+      - name: Check out main with the deploy key
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0              # make report compares with origin/main
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+
+      - name: Install the locked environment
+        run: make install-ci
+
+      - name: Configure the DVC remote credentials
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          uv run dvc remote modify origin --local auth basic
+          uv run dvc remote modify origin --local user "$DAGSHUB_USERNAME"
+          uv run dvc remote modify origin --local password "$DAGSHUB_TOKEN"
+
+      - name: Pull the data and the current model
+        run: make data-pull
+
+      - name: Configure the Git identity of the bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # dvc exp run applies the changes to params.yaml (comments kept, unknown
+      # keys rejected), re-runs the stages that depend on them and logs the run
+      # to MLflow (evaluate stage)
+      - name: Train and evaluate the candidate
+        env:
+          PARAMS: ${{ inputs.params }}
+        run: |
+          read -ra changes <<< "$PARAMS"
+          args=()
+          for change in "${changes[@]}"; do args+=(--set-param "$change"); done
+          uv run dvc exp run "${args[@]}"
+          cat reports/metrics.json
+
+      - name: Quality gate
+        run: make test-data test-model
+
+      - name: Compare with the champion
+        id: decision
+        run: uv run python -m src.models.retrain --output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Push the candidate and its outputs
+        if: steps.decision.outputs.better == 'true'
+        env:
+          PARAMS: ${{ inputs.params }}
+          CANDIDATE: ${{ steps.decision.outputs.candidate }}
+        run: |
+          uv run dvc push
+          git switch -c "retrain/${GITHUB_RUN_ID}"
+          git add params.yaml dvc.lock reports/metrics.json
+          git commit -m "retrain: candidate model, cv recall ${CANDIDATE}" \
+            -m "Parameter changes: ${PARAMS:-none}"
+          git push origin HEAD
+
+      - name: Open the pull request
+        if: steps.decision.outputs.better == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE: ${{ steps.decision.outputs.candidate }}
+        run: |
+          make report
+          {
+            echo "Candidate trained by the [Retrain workflow](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})."
+            echo "It passed the quality gate and beats the champion of the MLflow Model Registry."
+            echo
+            cat reports/report.md
+          } > pr-body.md
+          gh pr create --base main --head "retrain/${GITHUB_RUN_ID}" \
+            --title "retrain: new candidate model (cv recall ${CANDIDATE})" --body-file pr-body.md
