@@ -30,22 +30,25 @@ deployment, monitoring and continuous retraining.
 ## 🏗️ Architecture
 
 ```
- Developer ──push/PR──▶ GitHub Actions
-                         ├─ ① CI code      lint · types · security · tests
-                         ├─ ② CI data      schema & quality validation
-                         ├─ ③ Train        DVC pipeline + MLflow tracking
-                         ├─ ④ Evaluate     quality gates + CML report on PR
-                         ├─ ⑤ Register     MLflow Model Registry → Staging
-                         ├─ ⑥ Build        Docker image + Trivy scan → GHCR
-                         └─ ⑦ Deploy       ArgoCD (GitOps) → staging → prod
+ Developer ──PR──▶ GitHub Actions (CI)
+                    ├─ ① code       lint · types · security · unit tests
+                    ├─ ② data+model dvc pull · pipeline-check · quality gate
+                    ├─ ③ images     API + drift check, smoke tested
+                    └─ ④ report     metrics diff commented on the PR
+        merge on main
+                    ├─ publish      GHCR :<commit>
+                    ├─ deploy       commit the image tag ──▶ Argo CD (GitOps)
+                    └─ register     MLflow Model Registry (champion)
                                                    │
                                                    ▼
-                                  FastAPI model server (Kubernetes)
+                          FastAPI model server (Kubernetes, kind)
                                                    │
                                                    ▼
-                          Monitoring: Prometheus · Grafana · Evidently
+             Monitoring: Prometheus · Grafana · Evidently (every 15 min)
                                                    │
-                                  drift detected ──┴──▶ retrain (back to ③)
+                       drift ──▶ alert + GitHub issue "new labeled data needed"
+                                                   │
+                       new data (DVC) ──▶ Retrain workflow ──▶ PR if better ──▶ ①
 ```
 
 ---
@@ -59,13 +62,13 @@ deployment, monitoring and continuous retraining.
 | Testing | Pytest, pytest-cov |
 | Data versioning | DVC + DagsHub |
 | Experiment tracking & registry | MLflow |
-| Data validation | Pandera / Great Expectations |
+| Data validation | Pandera |
 | CI/CD | GitHub Actions, CML |
 | Serving | FastAPI |
-| Containers | Docker, GHCR, Trivy |
+| Containers | Docker (multi-stage), GHCR |
 | Deployment | GHCR, Kubernetes (kind), Kustomize, Argo CD |
-| Infrastructure as Code | Terraform |
-| Monitoring | Prometheus, Grafana, Evidently |
+| Monitoring | Prometheus (+ Pushgateway), Grafana, Evidently |
+| Continuous training | GitHub Actions (Retrain workflow), MLflow Model Registry |
 
 ---
 
@@ -73,23 +76,22 @@ deployment, monitoring and continuous retraining.
 
 ```
 .
-├── .github/workflows/   # CI/CD pipelines
-├── configs/             # hyperparameters and quality-gate thresholds
+├── .github/workflows/   # CI/CD (ci.yml) and retraining (retrain.yml)
 ├── data/                # DVC-tracked data (raw/, processed/) - not in Git
-├── docker/              # Dockerfile and smoke test of the API image
+├── docker/              # Dockerfiles (API, drift check) and the API smoke test
 ├── docs/adr/            # Architecture Decision Records
 ├── infra/
-│   ├── argocd/          # Argo CD application (GitOps)
-│   ├── k8s/             # Kustomize manifests (base/, overlays/local/), kind config
-│   └── terraform/       # infrastructure as code
-├── monitoring/          # Grafana dashboards, Evidently reports, alerts
+│   ├── argocd/          # Argo CD applications (API, monitoring)
+│   └── k8s/             # Kustomize manifests (base/, overlays/, monitoring/), kind config
 ├── notebooks/           # exploration only, never used in production
-├── pipelines/           # DVC pipeline definition
 ├── src/
-│   ├── data/            # ingestion, cleaning, validation
+│   ├── data/            # preparation, validation, plausible bounds
 │   ├── features/        # feature engineering
-│   ├── models/          # train, evaluate, predict
-│   └── serving/         # inference API
+│   ├── models/          # train, evaluate, register, retraining decision
+│   ├── monitoring/      # drift detection (Evidently), scheduled check, drift issue
+│   └── serving/         # inference API and its metrics
+├── dvc.yaml             # ML pipeline: prepare -> train -> evaluate
+├── params.yaml          # pipeline parameters (single source of truth)
 └── tests/
     ├── unit/            # pure functions
     ├── data/            # schema and distribution tests
@@ -272,23 +274,27 @@ Pull request
 ② Data and model tests              make data-pull · pipeline-check · test    (DagsHub data)
    │ green, tested model shared as an artifact
    ▼
-③ Docker image                      make docker-build · docker-smoke          (tested model)
+③ Docker images                     make docker-build · docker-smoke          (tested model)
+                                    make docker-build-drift · docker-smoke-drift
    │ green
    ▼
 ④ Metrics report                    make report → CML comment on the PR       (PR only)
 ⑤ Deploy                            make k8s-set-image → commit on main       (main only)
+⑥ Register                          make register → MLflow champion           (main only)
 ```
 
 | Job | Required to merge | What it guarantees |
 |---|---|---|
 | Lint, types, security and tests | Yes | Clean, typed, secure code; unit tests pass with coverage >= 80% |
-| Data and model tests | Yes | `dvc.lock` matches the code and params; all 96 tests run (none skipped), including the model quality gate |
-| Docker image | Yes | The image builds with the tested model, starts, answers `/health` and `/predict` and runs as non-root |
+| Data and model tests | Yes | `dvc.lock` matches the code and params; all the tests run (none skipped), including the model quality gate |
+| Docker image | Yes | The API image builds with the tested model, starts, answers `/health`, `/predict` and `/metrics` and runs as non-root; the drift check image loads its reference data |
 | Metrics report | No | Reviewers see the metrics and params diff against `main` in a PR comment |
 | Deploy | — (main only) | The published image tag is committed to the `local` overlay for Argo CD |
+| Register | — (main only) | The deployed model is registered in MLflow and promoted if better |
 
 **Security**
-- Actions are pinned to a full commit SHA; Dependabot proposes updates weekly.
+- Actions are pinned to a full commit SHA and runners to `ubuntu-24.04`;
+  Dependabot proposes updates weekly.
 - The workflow token is read-only; only the report job can write PR comments
   and only the image job can publish packages.
 - The DagsHub token is a repository secret (`DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`),
@@ -341,6 +347,73 @@ curl -s localhost:30080/health
 - The deploy job is the only one allowed to push to `main`, with a deploy key
   in the ruleset bypass list; its commit does not trigger the CI again.
 
+## 📊 Monitoring
+
+The API and the model are monitored inside the cluster, with everything
+declared in Git and deployed by Argo CD
+([`infra/argocd/monitoring.yaml`](infra/argocd/monitoring.yaml)).
+
+```
+API pods ── /metrics ──────────────────▶ Prometheus ──▶ Grafana dashboard "Diabetes API"
+   │                                        ▲    └────▶ alerts DiabetesDataDrift,
+   └─ 1 JSON line per prediction            │                  DiabetesDriftCheckStale
+          │                                 │
+          ▼  every 15 min                   │
+   CronJob drift-monitor ── Evidently ──▶ Pushgateway
+   (training data vs production requests) ──▶ GitHub issue on drift
+```
+
+| Signal | Source | Question it answers |
+|---|---|---|
+| Requests, errors, latency | `/metrics` (Prometheus) | Is the service healthy? |
+| Share predicted diabetic, probabilities, unknown measurements | `/metrics` | Does the model behave as usual? |
+| Data drift per feature | CronJob `drift-monitor` (Evidently) | Do the patients still look like the training data? |
+
+- A dataset drifts when at least half of the 5 features drift, on at least
+  50 predictions: a single feature can be flagged by chance.
+- Drift does not prove that the model is wrong: it says that its training data
+  no longer represents the requests.
+
+```bash
+make monitoring-app   # Prometheus, Pushgateway, Grafana and the dashboard (Argo CD)
+make prometheus-ui    # http://localhost:9090 (targets, alerts)
+make grafana-ui       # http://localhost:3001 (dashboard "Diabetes API")
+make traffic-drift    # send requests from a shifted population
+make drift-run-now    # run the drift check now instead of waiting 15 minutes
+```
+
+---
+
+## 🔁 Continuous Training
+
+Retraining needs new **labeled** data (patients with their confirmed
+diagnosis). The production requests have no label, so the loop keeps a human
+where the data comes from, and automates everything else.
+
+```
+drift detected ──▶ GitHub issue "data-drift" (one at a time): collect new labeled data
+                                  │
+new data version (DVC, PR) ──▶ Actions → Retrain → Run workflow (optional parameter changes)
+                                  │
+              dvc exp run ──▶ quality gate ──▶ candidate vs MLflow champion
+                                  │
+             not better: champion kept, nothing opened
+             strictly better: pull request "retrain: new candidate model"
+                                  │
+             CI ──▶ human review & merge ──▶ image ──▶ Argo CD ──▶ register (new champion)
+```
+
+| Piece | Where | Role |
+|---|---|---|
+| Retrain workflow | [`.github/workflows/retrain.yml`](.github/workflows/retrain.yml) | Trains a candidate, runs the quality gate, opens a PR only if it beats the champion |
+| Decision | [`src/models/retrain.py`](src/models/retrain.py) | `cv_recall_mean` of the candidate vs the champion, same rule as the promotion |
+| Registry sync | job `register` of `ci.yml` | After each merge, the deployed model is registered and promoted if better |
+| Drift issue | [`src/monitoring/issues.py`](src/monitoring/issues.py) | Opens one issue with the drifted features and the next steps |
+
+Real runs on this project: the same data gave `0.7663 = 0.7663` (champion
+kept) and a candidate with `n_estimators=400, min_samples_leaf=3` gave
+`0.7570 < 0.7663` (rejected): most retrainings must not deploy anything.
+
 ---
 
 ## 🗺️ Roadmap
@@ -353,14 +426,15 @@ curl -s localhost:30080/health
 - [x] **Step 6** — Continuous Integration (GitHub Actions + CML)
 - [x] **Step 7** — Model serving & containerization (FastAPI + Docker)
 - [x] **Step 8** — Continuous Deployment & GitOps (GHCR + ArgoCD)
-- [ ] **Step 9** — Monitoring (Prometheus + Grafana + Evidently)
-- [ ] **Step 10** — Continuous Training & feedback loop
+- [x] **Step 9** — Monitoring (Prometheus + Grafana + Evidently)
+- [x] **Step 10** — Continuous Training & feedback loop
 
 ---
 
 ## 🤝 Conventions
 
-- **Branches:** `feature/*`, `fix/*`, `chore/*` → Pull Request → `main`
+- **Branches:** `feature/*`, `fix/*`, `chore/*` → Pull Request → `main`;
+  `retrain/*` branches are created by the Retrain workflow
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat:`, `fix:`, `chore:`, `build:`, `ci:`, `docs:`, `test:`)
 - **Language:** all code, comments and documentation are written in English
