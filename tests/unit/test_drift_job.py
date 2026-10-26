@@ -143,11 +143,49 @@ def test_main_requires_a_pushgateway(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_main_runs_the_check(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[str, str, str]] = []
+    calls: list[tuple[Any, ...]] = []
     monkeypatch.setenv("PUSHGATEWAY_URL", "http://gateway:9091")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
     monkeypatch.setattr(job, "in_cluster_api_get", lambda: "api")
-    monkeypatch.setattr(job, "run_check", lambda api, url, ns, sel: calls.append((url, ns, sel)))
+    monkeypatch.setattr(job, "run_check", lambda *args: calls.append(args))
 
     job.main([])
 
-    assert calls == [("http://gateway:9091", "diabetes", "app.kubernetes.io/name=diabetes-api")]
+    assert calls == [
+        ("api", "http://gateway:9091", "diabetes", "app.kubernetes.io/name=diabetes-api", None, "")
+    ]
+
+
+def test_main_reports_to_github_when_a_token_is_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setenv("PUSHGATEWAY_URL", "http://gateway:9091")
+    monkeypatch.setenv("GITHUB_TOKEN", "github-token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setattr(job, "in_cluster_api_get", lambda: "api")
+    monkeypatch.setattr(job, "github_api", lambda token: f"github({token})")
+    monkeypatch.setattr(job, "run_check", lambda *args: calls.append(args))
+
+    job.main([])
+
+    assert calls[0][-2:] == ("github(github-token)", "owner/repo")
+
+
+@pytest.mark.parametrize(("dataset_drift", "opened"), [(True, 1), (False, 0)])
+def test_an_issue_is_opened_only_on_drift(
+    pushed: dict[str, float], monkeypatch: pytest.MonkeyPatch, dataset_drift: bool, opened: int
+) -> None:
+    issues: list[tuple[str, list[str]]] = []
+    result = DriftResult(dataset_drift, ["Age"], 0.6 if dataset_drift else 0.2, 614, 60)
+    monkeypatch.setattr(job.drift, "run", lambda **_: result)
+    monkeypatch.setattr(
+        job,
+        "open_drift_issue",
+        lambda api, repo, res, versions: issues.append((repo, sorted(set(versions)))),
+    )
+    line = json.dumps({"event": "prediction", "model_version": "abc1234", "features": {}})
+    api = fake_api({"pod-a": "\n".join([line] * 60)})
+
+    job.run_check(api, "http://gateway", "diabetes", "x", github=lambda *a: None, repository="o/r")
+
+    assert issues == [("o/r", ["abc1234"])] * opened

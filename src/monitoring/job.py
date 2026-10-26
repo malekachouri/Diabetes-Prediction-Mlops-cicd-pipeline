@@ -5,6 +5,8 @@
 2. Compare them with the training data (src.monitoring.drift).
 3. Push the result to the Prometheus Pushgateway: Prometheus raises the alert
    and Grafana shows it.
+4. On drift, open a GitHub issue asking for new labeled data (only when a
+   GitHub token is configured, and only one open issue at a time).
 
 Run with ``python -m src.monitoring.job`` (image docker/drift.Dockerfile).
 """
@@ -27,6 +29,7 @@ from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
 from src.config import DEFAULT_PARAMS_PATH, load_config
 from src.monitoring import drift
 from src.monitoring.drift import MIN_CURRENT_ROWS, DriftResult
+from src.monitoring.issues import GitHubApi, github_api, open_drift_issue
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +105,14 @@ def push_result(
 
 
 def run_check(
-    api_get: ApiGet, gateway_url: str, namespace: str, selector: str
+    api_get: ApiGet,
+    gateway_url: str,
+    namespace: str,
+    selector: str,
+    github: GitHubApi | None = None,
+    repository: str = "",
 ) -> DriftResult | None:
-    """Collect, analyze and push; returns None when there are too few predictions."""
+    """Collect, analyze, push and report a drift; returns None with too few predictions."""
     features = load_config(DEFAULT_PARAMS_PATH).data.features
     lines = collect_predictions(api_get, namespace, selector)
 
@@ -117,6 +125,11 @@ def run_check(
             current.write_text("\n".join(lines) + "\n", encoding="utf-8")
             result = drift.run(current_path=current, report_dir=Path(tmp) / "report")
     push_result(gateway_url, features, len(lines), result)
+
+    # After the push: the metrics and the alert do not depend on GitHub
+    if result is not None and result.dataset_drift and github is not None and repository:
+        versions = [json.loads(line).get("model_version", "unknown") for line in lines]
+        open_drift_issue(github, repository, result, versions)
     return result
 
 
@@ -126,12 +139,23 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--namespace", default=os.environ.get("POD_NAMESPACE", "diabetes"))
     parser.add_argument("--selector", default="app.kubernetes.io/name=diabetes-api")
     parser.add_argument("--pushgateway", default=os.environ.get("PUSHGATEWAY_URL", ""))
+    parser.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     args = parser.parse_args(argv)
     if not args.pushgateway:
         parser.error("--pushgateway or PUSHGATEWAY_URL is required")
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-    run_check(in_cluster_api_get(), args.pushgateway, args.namespace, args.selector)
+    # Optional: without a token, the drift is only reported to Prometheus
+    token = os.environ.get("GITHUB_TOKEN", "")
+    github = github_api(token) if token else None
+    run_check(
+        in_cluster_api_get(),
+        args.pushgateway,
+        args.namespace,
+        args.selector,
+        github,
+        args.repository,
+    )
 
 
 if __name__ == "__main__":
