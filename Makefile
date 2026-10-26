@@ -44,7 +44,7 @@ LOAD_ENV := if [ -f .env ]; then set -a; . ./.env; set +a; fi;
         pipeline-check metrics report dag serve docker-build docker-run docker-smoke \
         docker-build-drift docker-smoke-drift docker-push kind-up kind-down k8s-apply k8s-set-image argocd-install argocd-app \
         argocd-ui monitoring-app prometheus-ui grafana-ui traffic traffic-drift \
-        drift-collect drift-report drift-run-now register clean
+        drift-collect drift-report drift-run-now drift-github-token register clean
 
 help: ## Show this help
 > @grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -247,6 +247,12 @@ drift-run-now: ## Run the scheduled drift check now in the cluster, then show it
 >   kubectl --context $(KUBE_CONTEXT) -n diabetes wait --for=condition=complete job/$$job \
 >     --timeout=300s; \
 >   kubectl --context $(KUBE_CONTEXT) -n diabetes logs job/$$job
+
+drift-github-token: ## Store the GitHub token of the drift issues in the cluster (asked, hidden)
+> @read -rsp "GitHub token (Issues: read and write): " token; echo; \
+>   printf '%s' "$$token" | kubectl --context $(KUBE_CONTEXT) -n diabetes create secret \
+>     generic drift-github-token --from-file=token=/dev/stdin --dry-run=client -o yaml | \
+>   kubectl --context $(KUBE_CONTEXT) apply -f -
 
 drift-report: ## Compare the collected predictions with the training data (Evidently)
 > uv run python -m src.monitoring.drift
